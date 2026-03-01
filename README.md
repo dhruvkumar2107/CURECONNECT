@@ -188,4 +188,29 @@ If you move your API keys to environment variables later, you can add them in th
 Click **Create Static Site**. Render will now build and deploy your application. Once finished, you'll receive a live URL.
 
 ---
+
+## 🔥 How to Deploy on Firebase Hosting
+
+Since you've already connected the database, you can also host your website on Firebase for free:
+
+### 1. Install Firebase Tools
+If you haven't yet, run this in your terminal:
+```bash
+npm install -g firebase-tools
+```
+
+### 2. Login and Initialize
+1.  **Login**: Run `firebase login` and follow the browser prompts.
+2.  **Verify**: I have already created `firebase.json` and `.firebaserc` for you! You don't need to run `firebase init` if you use my files.
+
+### 3. Build & Deploy
+Run these commands to go live:
+```bash
+npm run build
+firebase deploy
+```
+
+Your site will be live at `https://cureconnect-95fb6.web.app`!
+
+---
 © 2025 CureConnect. All rights reserved.
