@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
+import { seedDatabase } from '../services/seed';
 
 type TabType = 'overview' | 'inventory' | 'orders' | 'finances' | 'settings';
 
@@ -261,9 +262,17 @@ export const PartnershipDashboard = () => {
                         <Database size={24} />
                         <span className="text-sm font-bold">Export for Power BI</span>
                     </button>
-                    <button className="flex-1 bg-white border border-slate-200 text-slate-600 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-all">
-                        <FileDown size={24} />
-                        <span className="text-sm font-bold">Monthly Report</span>
+                    <button
+                        onClick={async () => {
+                            if (window.confirm("Seed demo data? This will add initial medicines and pharmacies to your database.")) {
+                                await seedDatabase();
+                                window.location.reload();
+                            }
+                        }}
+                        className="flex-1 bg-teal-600 text-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
+                    >
+                        <Plus size={24} />
+                        <span className="text-sm font-bold">Seed Demo Data</span>
                     </button>
                 </div>
             </div>
