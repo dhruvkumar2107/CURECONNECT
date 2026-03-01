@@ -9,26 +9,31 @@ import {
   updateProfile
 } from "firebase/auth";
 
+import { getAnalytics } from "firebase/analytics";
+
 console.log("firebase.ts: Imports successful");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCHEC0p89XtARfEJGcMTNXTtnVOjnWkJvQ",
-  authDomain: "cure-connect-567f6.firebaseapp.com",
-  projectId: "cure-connect-567f6",
-  storageBucket: "cure-connect-567f6.firebasestorage.app",
-  messagingSenderId: "825178518780",
-  appId: "1:825178518780:web:2f56c1bdac24af06c59379",
-  measurementId: "G-BCH97TB5K7"
+  apiKey: "AIzaSyCaMduUYlSEnbwlzwgMynyOCSWFjV1VRZQ",
+  authDomain: "cureconnect-95fb6.firebaseapp.com",
+  projectId: "cureconnect-95fb6",
+  storageBucket: "cureconnect-95fb6.firebasestorage.app",
+  messagingSenderId: "556570830516",
+  appId: "1:556570830516:web:255bff9186e9f32b6719e1",
+  measurementId: "G-SGBZ1LJS5R"
 };
 
 let app;
 let db;
 let auth;
+let analytics;
 
 try {
   console.log("firebase.ts: Initializing app...");
   app = initializeApp(firebaseConfig);
   console.log("firebase.ts: App initialized", app);
+
+  analytics = getAnalytics(app);
 
   db = getFirestore(app);
   console.log("firebase.ts: Firestore initialized", db);
