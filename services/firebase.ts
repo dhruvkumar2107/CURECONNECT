@@ -14,13 +14,13 @@ import { getAnalytics } from "firebase/analytics";
 console.log("firebase.ts: Imports successful");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCaMduUYlSEnbwlzwgMynyOCSWFjV1VRZQ",
-  authDomain: "cureconnect-95fb6.firebaseapp.com",
-  projectId: "cureconnect-95fb6",
-  storageBucket: "cureconnect-95fb6.firebasestorage.app",
-  messagingSenderId: "556570830516",
-  appId: "1:556570830516:web:255bff9186e9f32b6719e1",
-  measurementId: "G-SGBZ1LJS5R"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 let app;
