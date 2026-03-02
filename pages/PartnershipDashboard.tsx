@@ -62,7 +62,7 @@ export const PartnershipDashboard = () => {
     }, [user, isLoadingAuth, navigate]);
 
     const fetchPharmacyData = async () => {
-        if (!user) return;
+        if (!user || !user.uid) return;
         try {
             const docRef = doc(db, 'pharmacies', user.uid);
             const docSnap = await getDoc(docRef);
