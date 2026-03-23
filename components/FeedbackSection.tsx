@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Send, Star, CheckCircle2 } from 'lucide-react';
-import { addFeedback } from '../services/firebase';
+import { Send, CheckCircle2, MessageSquare, Star } from 'lucide-react';
+import { addFeedback } from '../services/dbService';
 
 export const FeedbackSection = () => {
     const [rating, setRating] = useState<number | null>(null);
@@ -12,7 +12,7 @@ export const FeedbackSection = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (rating === null) {
-            setError('Please select a rating');
+            setError('Please select a rating to continue');
             return;
         }
 
@@ -22,92 +22,131 @@ export const FeedbackSection = () => {
         try {
             await addFeedback(rating, comment);
             setIsSubmitted(true);
-            // Reset form after 3 seconds
             setTimeout(() => {
                 setIsSubmitted(false);
                 setRating(null);
                 setComment('');
-            }, 3000);
+            }, 5000);
         } catch (err) {
-            setError('Failed to submit feedback. Please try again.');
+            setError('System encountered an error. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const ratings = [
-        { value: 1, label: '😠' },
-        { value: 2, label: '☹️' },
-        { value: 3, label: '😐' },
-        { value: 4, label: '🙂' },
-        { value: 5, label: '🤩' },
+        { value: 1, label: '😠', text: 'Poor' },
+        { value: 2, label: '☹️', text: 'Fair' },
+        { value: 3, label: '😐', text: 'Good' },
+        { value: 4, label: '🙂', text: 'Great' },
+        { value: 5, label: '🤩', text: 'Excellent' },
     ];
 
     if (isSubmitted) {
         return (
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 text-center animate-in fade-in zoom-in duration-300">
-                <div className="flex justify-center mb-4">
-                    <CheckCircle2 className="text-teal-400 w-16 h-16" />
+            <div className="bg-slate-900 border border-white/10 rounded-[3rem] p-12 text-center animate-in zoom-in fade-in duration-500 shadow-2xl shadow-teal-900/20">
+                <div className="flex justify-center mb-6">
+                    <div className="bg-teal-500/20 p-4 rounded-full">
+                        <CheckCircle2 className="text-teal-400 w-16 h-16" />
+                    </div>
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Thank You!</h3>
-                <p className="text-teal-100">Your feedback helps us make CureConnect better.</p>
+                <h3 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">Feedback <span className="text-teal-400">Received</span></h3>
+                <p className="text-slate-400 max-w-sm mx-auto font-medium text-sm leading-relaxed uppercase tracking-widest opacity-60">
+                    Your insights help us refine the CureConnect ecosystem. Thank you for your contribution.
+                </p>
             </div>
         );
     }
 
     return (
-        <section className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-3xl p-8 shadow-2xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-teal-500/20 transition-all duration-500"></div>
+        <section className="bg-slate-900 border border-white/5 rounded-[3.5rem] p-12 shadow-[0_40px_100px_rgba(0,0,0,0.4)] overflow-hidden relative group">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/5 rounded-full -mr-48 -mt-48 blur-[120px] group-hover:bg-teal-500/10 transition-all duration-1000"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full -ml-32 -mb-32 blur-[100px]"></div>
 
-            <div className="relative z-10">
-                <h2 className="text-2xl font-bold text-white mb-2">How's your experience?</h2>
-                <p className="text-slate-400 mb-8">We value your thoughts on how we can improve CureConnect.</p>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-4">Select a Rating</label>
-                        <div className="flex justify-between max-w-sm">
-                            {ratings.map((r) => (
-                                <button
-                                    key={r.value}
-                                    type="button"
-                                    onClick={() => setRating(r.value)}
-                                    className={`text-4xl transition-all duration-200 hover:scale-125 focus:outline-none ${rating === r.value ? 'filter-none drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]' : 'grayscale opacity-60 hover:grayscale-0 hover:opacity-100'
-                                        }`}
-                                >
-                                    {r.label}
-                                </button>
+            <div className="relative z-10 grid lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-teal-400">
+                        <MessageSquare size={14} />
+                        User Experience
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight uppercase tracking-tighter">
+                        Help us <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">improve</span><br/>
+                        the future.
+                    </h2>
+                    <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-md opacity-80">
+                        We value your perspective. Share your thoughts on how we can make healthcare more accessible for everyone.
+                    </p>
+                    
+                    <div className="mt-12 flex items-center gap-4">
+                        <div className="flex -space-x-3">
+                            {[1,2,3].map(i => (
+                                <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center">
+                                    <Star size={14} className="text-amber-400 fill-amber-400" />
+                                </div>
                             ))}
                         </div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Trusted by 2k+ contributors</p>
                     </div>
+                </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Anything else you'd like to share?</label>
-                        <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            placeholder="Tell us what you liked or how we can improve..."
-                            className="w-full h-32 bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-teal-500/50 outline-none transition-all resize-none"
-                        ></textarea>
-                    </div>
+                <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] shadow-2xl">
+                    <form onSubmit={handleSubmit} className="space-y-10">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">Select a Rating</label>
+                            <div className="flex justify-between items-center bg-slate-800/50 p-6 rounded-[2rem] border border-white/5">
+                                {ratings.map((r) => (
+                                    <button
+                                        key={r.value}
+                                        type="button"
+                                        onClick={() => setRating(r.value)}
+                                        className={`group relative flex flex-col items-center transition-all duration-500 ${
+                                            rating === r.value ? 'scale-125' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
+                                        }`}
+                                    >
+                                        <span className={`text-4xl transition-all duration-300 ${rating === r.value ? 'drop-shadow-[0_0_15px_rgba(45,212,191,0.5)]' : ''}`}>
+                                            {r.label}
+                                        </span>
+                                        <span className={`absolute -bottom-6 text-[8px] font-black uppercase tracking-widest text-teal-400 transition-all duration-300 ${rating === r.value ? 'opacity-100' : 'opacity-0'}`}>
+                                            {r.text}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
-                    {error && <p className="text-rose-400 text-sm">{error}</p>}
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Your Thoughts</label>
+                            <textarea
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder="Tell us about your experience..."
+                                className="w-full h-40 bg-slate-800/40 border border-white/5 rounded-3xl p-6 text-white placeholder-slate-600 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all resize-none font-medium leading-relaxed"
+                            ></textarea>
+                        </div>
 
-                    <button
-                        type="submit"
-                        disabled={isSubmitting || rating === null}
-                        className="w-full h-12 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300 shadow-lg shadow-teal-500/20 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
-                    >
-                        {isSubmitting ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        ) : (
-                            <>
-                                <Send size={18} />
-                                Submit Feedback
-                            </>
+                        {error && (
+                            <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl text-rose-400 text-[10px] font-black uppercase tracking-widest text-center animate-pulse">
+                                {error}
+                            </div>
                         )}
-                    </button>
-                </form>
+
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || rating === null}
+                            className="w-full h-16 bg-white hover:bg-teal-500 text-slate-900 hover:text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 transition-all duration-500 shadow-xl shadow-black/20 disabled:opacity-20 disabled:cursor-not-allowed transform active:scale-[0.98] group"
+                        >
+                            {isSubmitting ? (
+                                <div className="w-6 h-6 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin"></div>
+                            ) : (
+                                <>
+                                    <span>Send Feedback</span>
+                                    <Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-500" />
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </div>
             </div>
         </section>
     );

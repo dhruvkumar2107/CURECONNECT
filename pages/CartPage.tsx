@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Trash2, ArrowRight, CheckCircle, Clock } from 'lucide-react';
 import { PHARMACIES } from '../constants';
 import { useNavigate } from 'react-router-dom';
+import { createOrder } from '../services/dbService';
 
 export const CartPage = () => {
   const { cart, removeFromCart, clearCart, user } = useApp();
@@ -20,74 +21,128 @@ export const CartPage = () => {
     return acc;
   }, {} as Record<string, typeof cart>);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
-    setCheckedOut(true);
-    setTimeout(() => {
-      clearCart();
-      setCheckedOut(false);
-      setShowSchedule(false);
-      alert("Order reserved successfully! Please pick up from the pharmacy within 24 hours.");
-    }, 2000);
+    
+    try {
+      // 1. Create orders in Firestore for each pharmacy
+      for (const [pharmacyId, items] of (Object.entries(groupedItems) as [string, any[]][])) {
+        const pharmacyTotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        await createOrder({
+          pharmacyId,
+          customerId: user.id,
+          customerName: user.name,
+          items: items as any,
+          total: pharmacyTotal,
+          status: 'Pending',
+          createdAt: new Date().toISOString(),
+          pickupTime: showSchedule ? pickupTime : undefined
+        });
+      }
+
+      setCheckedOut(true);
+      setTimeout(() => {
+        clearCart();
+        setCheckedOut(false);
+        setShowSchedule(false);
+        alert("Order reserved successfully and recorded in database! Please pick up from the pharmacy within 24 hours.");
+      }, 2000);
+    } catch (error) {
+      console.error("Checkout failed:", error);
+      alert("Failed to create reservation in database. Please try again.");
+    }
   };
 
   if (cart.length === 0 && !checkedOut) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="bg-slate-100 p-6 rounded-full mb-4">
-          <ArrowRight size={32} className="text-slate-400" />
+      <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in duration-700">
+        <div className="bg-slate-50 p-10 rounded-[3rem] mb-8 shadow-inner">
+          <ShoppingCart size={64} className="text-slate-200" />
         </div>
-        <h2 className="text-xl font-bold text-slate-800">Your cart is empty</h2>
-        <p className="text-slate-500 mt-2">Search for medicines to reserve them.</p>
+        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Your cart is <span className="text-teal-600">empty</span></h2>
+        <p className="text-slate-400 mt-4 max-w-xs font-medium uppercase text-[10px] tracking-widest leading-relaxed">Search for medicines and medications to reserve them instantly.</p>
+        <button 
+          onClick={() => navigate('/')}
+          className="mt-10 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-teal-600 transition-all active:scale-95 shadow-xl shadow-slate-200"
+        >
+          Browse Medicines
+        </button>
       </div>
     );
   }
 
   if (checkedOut) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-        <div className="bg-green-100 p-6 rounded-full mb-4">
-          <CheckCircle size={48} className="text-green-600" />
+      <div className="flex flex-col items-center justify-center py-32 text-center animate-in zoom-in fade-in duration-500">
+        <div className="bg-teal-50 p-10 rounded-[3rem] mb-8 shadow-xl shadow-teal-100 border border-teal-100">
+          <CheckCircle size={80} className="text-teal-500" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-800">Reservation Confirmed!</h2>
-        <p className="text-slate-600 mt-2 max-w-md">
-          Your medicines have been reserved. We've sent the details to your phone.
-          {showSchedule && <span className="block font-semibold mt-1">Pickup scheduled for {pickupTime}</span>}
+        <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Reservation <span className="text-teal-600">Confirmed</span></h2>
+        <p className="text-slate-500 mt-6 max-w-md font-medium text-sm leading-relaxed">
+          Your reservation is successfully processed. A confirmation has been sent to your primary contact.
+          {showSchedule && <span className="block font-black text-teal-600 mt-4 uppercase tracking-[0.1em]">Scheduled for {pickupTime}</span>}
         </p>
+        <button 
+          onClick={() => navigate('/')}
+          className="mt-12 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-teal-600 transition-all opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-forwards"
+        >
+          Continue Shopping
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="pb-20">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Your Reservations</h1>
+    <div className="pb-40 px-4 sm:px-0 max-w-5xl mx-auto">
+      <div className="flex flex-col mb-12 animate-in slide-in-from-left-4 duration-500">
+        <h1 className="text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase">Your <span className="text-teal-600">Reservations</span></h1>
+        <div className="h-2 w-24 bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full mt-6 shadow-xl shadow-teal-100"></div>
+      </div>
 
-      <div className="space-y-6">
-        {Object.entries(groupedItems).map(([pharmacyId, items]) => {
+      <div className="space-y-10">
+        {(Object.entries(groupedItems) as [string, any[]][]).map(([pharmacyId, items], gIdx) => {
           const pharmacy = PHARMACIES.find(p => p.id === pharmacyId);
           return (
-            <div key={pharmacyId} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                <h3 className="font-semibold text-slate-800">{pharmacy?.name || 'Unknown Pharmacy'}</h3>
-                <p className="text-xs text-slate-500">{pharmacy?.address}</p>
+            <div key={pharmacyId} style={{ animationDelay: `${gIdx * 100}ms` }} className="bg-white border border-slate-100 rounded-[3rem] overflow-hidden shadow-[0_15px_50px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_70px_rgba(0,0,0,0.06)] transition-all duration-700 animate-in slide-in-from-bottom-8">
+              <div className="bg-slate-50/50 backdrop-blur-md px-10 py-8 border-b border-slate-100 flex flex-col sm:row justify-between items-start sm:items-center gap-6">
+                <div>
+                  <h3 className="font-black text-2xl text-slate-900 uppercase tracking-tighter">{pharmacy?.name || 'Unknown Pharmacy'}</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{pharmacy?.address}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 px-5 py-2.5 bg-white rounded-2xl border border-slate-100 shadow-sm text-[10px] font-black uppercase tracking-[0.2em] text-teal-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                  </span>
+                  Accepting Pickup
+                </div>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-50 bg-white">
                 {items.map((item, idx) => (
-                  <div key={`${item.id}-${idx}`} className="flex items-center justify-between p-4">
+                  <div key={`${item.id}-${idx}`} className="flex items-center justify-between p-10 hover:bg-slate-50/30 transition-all duration-300 group">
                     <div className="flex-1">
-                      <h4 className="font-medium text-slate-900">{item.name}</h4>
-                      <p className="text-sm text-slate-500">Qty: {item.quantity}</p>
+                      <h4 className="font-black text-slate-900 text-xl uppercase tracking-tighter group-hover:text-teal-600 transition-colors">{item.name}</h4>
+                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Inventory Group: <span className="text-slate-900">RX-{item.id.slice(0,4).toUpperCase()}</span></p>
+                      <div className="flex items-center gap-4 mt-4">
+                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600 uppercase tracking-widest">QTY: {item.quantity}</span>
+                      </div>
                     </div>
-                    <div className="text-right flex items-center gap-4">
-                      <span className="font-bold text-slate-800">₹{item.price * item.quantity}</span>
+                    <div className="text-right flex items-center gap-10">
+                      <div className="flex flex-col">
+                        <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">₹{item.price * item.quantity}</span>
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Total</span>
+                      </div>
                       <button
                         onClick={() => removeFromCart(item.id, item.pharmacyId)}
-                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        className="w-14 h-14 flex items-center justify-center text-slate-200 hover:text-rose-500 bg-white border border-slate-100 rounded-2xl hover:shadow-2xl hover:border-rose-100 transition-all duration-300 active:scale-90"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={24} />
                       </button>
                     </div>
                   </div>
@@ -98,43 +153,52 @@ export const CartPage = () => {
         })}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="max-w-4xl mx-auto">
-
-          {/* Schedule Pickup Toggle */}
-          <div className="flex items-center gap-2 mb-4">
-            <input
-              type="checkbox"
-              id="schedule"
-              checked={showSchedule}
-              onChange={(e) => setShowSchedule(e.target.checked)}
-              className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
-            />
-            <label htmlFor="schedule" className="text-sm font-medium text-slate-700 flex items-center gap-1">
-              <Clock size={16} /> Schedule Pickup
-            </label>
-            {showSchedule && (
-              <input
-                type="time"
-                value={pickupTime}
-                onChange={(e) => setPickupTime(e.target.value)}
-                className="ml-2 border border-slate-300 rounded px-2 py-1 text-sm"
-              />
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Total Estimate</p>
-              <p className="text-2xl font-bold text-slate-900">₹{total}</p>
+      {/* Premium Floating Checkout Bar */}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-50 animate-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both">
+        <div className="bg-slate-900/90 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 shadow-[0_30px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-10">
+          <div className="flex items-center gap-10 divide-x divide-white/10">
+            {/* Schedule Pickup Toggle */}
+            <div className="flex items-center gap-4">
+              <div 
+                className={`w-14 h-7 rounded-full p-1.5 cursor-pointer transition-all duration-500 ${showSchedule ? 'bg-teal-500' : 'bg-slate-700'}`}
+                onClick={() => setShowSchedule(!showSchedule)}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white shadow-lg transition-all duration-500 ${showSchedule ? 'translate-x-7 rotate-[360deg]' : 'translate-x-0'}`}></div>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-2 whitespace-nowrap">
+                  <Clock size={12} className="text-teal-400" /> Pickup Time
+                </label>
+                {showSchedule ? (
+                  <input
+                    type="time"
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    className="bg-transparent border-none text-teal-400 p-0 text-lg font-black tracking-tight outline-none focus:ring-0"
+                  />
+                ) : (
+                  <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest mt-1">Asap Pickup</span>
+                )}
+              </div>
             </div>
-            <button
-              onClick={handleCheckout}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-teal-600/20 transition-all transform active:scale-95"
-            >
-              {user ? (showSchedule ? 'Confirm & Schedule' : 'Confirm Reservation') : 'Login to Reserve'}
-            </button>
+
+            <div className="pl-10">
+              <p className="text-[10px] font-black text-teal-400 uppercase tracking-[0.4em] mb-2 opacity-70">Pay at Pharmacy</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-white text-[14px] font-black uppercase opacity-40">INR</span>
+                <p className="text-4xl font-black text-white tracking-tighter leading-none">₹{total}</p>
+              </div>
+            </div>
           </div>
+
+          <button
+            onClick={handleCheckout}
+            className="group relative bg-white hover:bg-teal-500 text-slate-900 hover:text-white px-12 h-20 rounded-[2rem] font-black text-[13px] uppercase tracking-[0.3em] transition-all duration-500 transform active:scale-[0.97] shadow-2xl flex items-center justify-center gap-4 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <span className="relative z-10">{user ? (showSchedule ? 'Confirm Schedule' : 'Reserve Locally') : 'Sign in to Continue'}</span>
+            <ArrowRight size={20} className="relative z-10 group-hover:translate-x-2 transition-transform duration-500" />
+          </button>
         </div>
       </div>
     </div>

@@ -83,31 +83,49 @@ export const HomePage = () => {
 
   return (
     <div className="pb-20">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-teal-600 to-teal-800 rounded-3xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-        <div className="relative z-10">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Find Medicines Instantly</h1>
-          <p className="text-teal-100 mb-8 max-w-lg">
-            Real-time availability from pharmacies near you.
-            {locationError && <span className="text-amber-300 text-sm block mt-2">⚠️ {locationError}</span>}
+      {/* Premium Hero Section */}
+      <div className="bg-gradient-to-br from-slate-900 via-teal-900 to-teal-800 rounded-[2.5rem] p-12 text-white shadow-2xl mb-12 relative overflow-hidden border border-white/5 mx-2 sm:mx-0">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-400/10 rounded-full -mr-32 -mt-32 blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-32 -mb-32 blur-[80px]"></div>
+        
+        <div className="relative z-10 max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] mb-6 text-teal-300">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+            </span>
+            Real-Time Network Active
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl font-black mb-6 leading-[1.1] tracking-tight">
+            Find <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-emerald-300">Medicines</span> <br/>
+            Instantly.
+          </h1>
+          
+          <p className="text-lg text-teal-100/70 mb-10 max-w-xl font-medium leading-relaxed">
+            Connect directly with local pharmacies for real-time stock verification and instant reservations.
+            {locationError && <span className="text-rose-400 text-sm block mt-3 font-bold">⚠️ {locationError}</span>}
           </p>
 
-          <form onSubmit={handleSearch} className="relative max-w-2xl" id="search-bar">
+          <form onSubmit={handleSearch} className="relative group" id="search-bar">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search for medicines (e.g. Dolo, Insulin)..."
-              className="w-full h-14 pl-12 pr-4 rounded-xl text-slate-800 shadow-lg focus:ring-4 focus:ring-teal-500/30 outline-none transition-all"
+              className="w-full h-16 pl-14 pr-32 rounded-2xl text-slate-800 shadow-2xl shadow-black/20 focus:ring-4 focus:ring-teal-500/30 outline-none transition-all duration-500 placeholder:text-slate-400 text-lg font-medium group-hover:scale-[1.01]"
             />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-600 transition-colors" size={24} />
             <button
               type="submit"
               disabled={isSearching || isLoadingLocation}
-              className="absolute right-2 top-2 h-10 bg-teal-600 hover:bg-teal-700 text-white px-6 rounded-lg font-medium transition-colors disabled:opacity-70"
+              className="absolute right-2 top-2 bottom-2 bg-teal-600 hover:bg-teal-500 text-white px-8 rounded-xl font-bold transition-all duration-300 disabled:opacity-70 flex items-center gap-2 shadow-lg shadow-teal-900/40 active:scale-95"
             >
-              {isSearching ? 'Searching...' : 'Search'}
+              {isSearching ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                'Search'
+              )}
             </button>
           </form>
 

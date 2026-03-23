@@ -32,10 +32,11 @@ import { PHARMACIES, MEDICINES } from '../constants';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
-import { doc, onSnapshot, updateDoc, collection, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, collection, setDoc, query, where } from 'firebase/firestore';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { seedDatabase } from '../services/seed';
 import { saveGlobalMedicine } from '../services/dbService';
+import { Order } from '../types';
 
 type TabType = 'overview' | 'inventory' | 'orders' | 'finances' | 'settings';
 
@@ -64,6 +65,7 @@ export const PartnershipDashboard = () => {
     const [appMedicines, setAppMedicines] = useState<any[]>([]);
     const [customDescription, setCustomDescription] = useState('');
     const [customRequiresPrescription, setCustomRequiresPrescription] = useState(false);
+    const [orders, setOrders] = useState<Order[]>([]);
 
     // Sync global medicines
     useEffect(() => {
@@ -102,10 +104,32 @@ export const PartnershipDashboard = () => {
                     console.error("Dashboard Subscription Error:", error);
                 });
 
-                return () => unsub();
+                // Real-time listener for orders
+                const ordersQuery = query(collection(db, 'orders'), where('pharmacyId', '==', user.id));
+                const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+                    const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+                    // Sort by newest first
+                    setOrders(ordersData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+                });
+
+                return () => {
+                    unsub();
+                    unsubOrders();
+                };
             }
         }
     }, [user, isLoadingAuth, navigate, user?.role]);
+
+    const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+        try {
+            const orderRef = doc(db, 'orders', orderId);
+            await updateDoc(orderRef, { status: newStatus });
+            console.log(`✅ Order ${orderId} status updated to ${newStatus}`);
+        } catch (error) {
+            console.error("Error updating order status:", error);
+            alert("Failed to update order status.");
+        }
+    };
 
     const updateFirestoreInventory = async (newInventory: any[]) => {
         if (!user) return;
@@ -442,6 +466,7 @@ export const PartnershipDashboard = () => {
                     {activeTab === 'overview' && (
                         <OverviewSection 
                             inventory={inventory} 
+                            orders={orders}
                             MEDICINES={appMedicines} 
                             onOpenAddModal={() => setIsAddModalOpen(true)}
                         />
@@ -455,7 +480,12 @@ export const PartnershipDashboard = () => {
                             onCSVUpload={handleCSVUpload}
                         />
                     )}
-                    {activeTab === 'orders' && <OrdersSection />}
+                    {activeTab === 'orders' && (
+                        <OrdersSection 
+                            orders={orders} 
+                            handleUpdateOrderStatus={handleUpdateOrderStatus} 
+                        />
+                    )}
                     {activeTab === 'finances' && <FinancesSection />}
                     {activeTab === 'settings' && <SettingsSection pharmacy={pharmacy} />}
                 </main>
@@ -647,48 +677,64 @@ export const PartnershipDashboard = () => {
 
 // --- Sub-sections ---
 
-const OverviewSection = ({ inventory }: { inventory: any[] }) => {
+const OverviewSection = ({ inventory, orders, MEDICINES, onOpenAddModal }: { 
+    inventory: any[]; 
+    orders: Order[];
+    MEDICINES: any[]; 
+    onOpenAddModal: () => void;
+}) => {
     const lowStockCount = inventory.filter(i => i.quantity < 10).length;
+    
+    // Real Stats from Database
+    const activeOrders = orders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled');
+    const completedOrders = orders.filter(o => o.status === 'Completed');
+    const totalRevenue = completedOrders.reduce((acc, o) => acc + o.total, 0);
+    const inventoryValue = inventory.reduce((acc, curr) => {
+        const medPrice = curr.price || MEDICINES.find(m => m.id === curr.medicineId)?.price || 0;
+        return acc + (medPrice * curr.quantity);
+    }, 0);
 
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     title="Gross Revenue"
-                    value="₹48,240"
-                    trend="+12.5%"
+                    value={`₹${totalRevenue.toLocaleString()}`}
+                    trend={completedOrders.length > 0 ? "+Real" : "No sales"}
                     icon={IndianRupee}
                     color="teal"
                 />
                 <StatCard
                     title="Active Orders"
-                    value="14"
-                    trend="+2"
+                    value={activeOrders.length.toString()}
+                    trend={activeOrders.length > 0 ? "Action Req." : "Clear"}
                     icon={ShoppingBag}
                     color="indigo"
                 />
                 <StatCard
-                    title="Low Stock Items"
+                    title="Inventory Value"
+                    value={`₹${inventoryValue.toLocaleString()}`}
+                    trend="In Stock"
+                    icon={PieChart}
+                    color="emerald"
+                />
+                <StatCard
+                    title="Low Stock"
                     value={lowStockCount.toString()}
-                    trend="-1"
+                    trend={lowStockCount > 0 ? "Critical" : "Healthy"}
                     icon={AlertCircle}
                     color="amber"
                     isWarning={lowStockCount > 0}
-                />
-                <StatCard
-                    title="Avg. Rating"
-                    value="4.8"
-                    trend="Stable"
-                    icon={CheckCircle2}
-                    color="emerald"
                 />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-slate-800">Performance Analytics</h3>
-                        <select className="text-xs font-bold text-slate-500 bg-slate-50 border-none rounded-lg p-1 px-2">
+                        <h3 className="font-black text-slate-800 flex items-center gap-2">
+                           <TrendingUp className="text-teal-500" size={18} /> Performance Analytics
+                        </h3>
+                        <select className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-50 border-none rounded-xl p-2 px-3 outline-none">
                             <option>Last 7 Days</option>
                             <option>Last 30 Days</option>
                         </select>
@@ -697,38 +743,72 @@ const OverviewSection = ({ inventory }: { inventory: any[] }) => {
                         {[45, 60, 40, 80, 55, 90, 70].map((h, i) => (
                             <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
                                 <div
-                                    className="w-full bg-teal-500/10 group-hover:bg-teal-500/20 rounded-t-lg transition-all relative overflow-hidden"
+                                    className="w-full bg-slate-100 group-hover:bg-teal-50 rounded-t-xl transition-all relative overflow-hidden"
                                     style={{ height: `${h}%` }}
                                 >
-                                    <div className="absolute bottom-0 left-0 w-full bg-teal-500 rounded-t-lg transition-all" style={{ height: '30%' }}></div>
+                                    <div className="absolute bottom-0 left-0 w-full bg-teal-500 rounded-t-xl transition-all" style={{ height: '30%' }}></div>
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-400">Day {i + 1}</span>
+                                <span className="text-[10px] font-black text-slate-400">Day {i + 1}</span>
                             </div>
                         ))}
                     </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                    <h3 className="font-bold text-slate-800 mb-6">Recent Alerts</h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-black text-slate-800 flex items-center gap-2">
+                           <Zap className="text-amber-500" size={18} /> Quick Actions
+                        </h3>
+                    </div>
                     <div className="space-y-4">
-                        <AlertItem
-                            type="stock"
-                            title="Paracetamol running low"
-                            time="2h ago"
-                            desc="Only 4 units left in stock."
-                        />
-                        <AlertItem
-                            type="order"
-                            title="New Bulk Order"
-                            time="4h ago"
-                            desc="Order #4928 requires manual verification."
-                        />
-                        <AlertItem
-                            type="expiry"
-                            title="Dolo 650 Expiry"
-                            time="1d ago"
-                            desc="10 units expiring in 15 days."
-                        />
+                        <button 
+                            onClick={onOpenAddModal}
+                            className="w-full flex items-center justify-between p-4 bg-teal-50 hover:bg-teal-100 rounded-2xl group transition-all"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white rounded-xl text-teal-600 shadow-sm">
+                                    <Plus size={18} />
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-sm font-black text-teal-900">Add Stock</div>
+                                    <div className="text-[10px] text-teal-600 font-bold">New medicine entry</div>
+                                </div>
+                            </div>
+                            <ChevronRight size={16} className="text-teal-400 group-hover:translate-x-1 transition-all" />
+                        </button>
+                    </div>
+                    <h3 className="font-black text-slate-800 mt-8 mb-4 flex items-center gap-2">
+                        <Bell size={18} className="text-slate-400" /> Recent Alerts
+                    </h3>
+                    <div className="space-y-4">
+                        {lowStockCount > 0 && inventory.filter(i => i.quantity < 10).map(i => {
+                            const med = MEDICINES.find(m => m.id === i.medicineId);
+                            return (
+                                <AlertItem
+                                    key={i.medicineId}
+                                    type="stock"
+                                    title={`${med?.name || 'Unknown'} low`}
+                                    time="Now"
+                                    desc={`Only ${i.quantity} units left.`}
+                                />
+                            );
+                        }).slice(0, 2)}
+                        
+                        {activeOrders.length > 0 && activeOrders.map(o => (
+                            <AlertItem
+                                key={o.id}
+                                type="order"
+                                title={`New Order #${o.id.slice(-4)}`}
+                                time="Pending"
+                                desc={`Waiting for fulfillment.`}
+                            />
+                        )).slice(0, 2)}
+
+                        {lowStockCount === 0 && activeOrders.length === 0 && (
+                            <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No urgent alerts</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -870,7 +950,10 @@ const InventorySection = ({ inventory, MEDICINES, onUpdateStock, onOpenAddModal,
     );
 };
 
-const OrdersSection = () => {
+const OrdersSection = ({ orders, handleUpdateOrderStatus }: { 
+    orders: Order[], 
+    handleUpdateOrderStatus: (id: string, status: Order['status']) => void 
+}) => {
     return (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-50 flex justify-between items-center">
@@ -879,48 +962,97 @@ const OrdersSection = () => {
                     <button className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all border border-slate-100 flex items-center gap-2">
                         <Filter size={14} /> Filter
                     </button>
+                    <div className="bg-teal-50 text-teal-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></div>
+                        Live Updates
+                    </div>
                 </div>
             </div>
 
             <div className="divide-y divide-slate-50">
-                {[
-                    { id: '4928', customer: 'John Doe', items: 3, total: 450, status: 'Packing', time: '12 min ago' },
-                    { id: '4927', customer: 'Sarah Miller', items: 1, total: 120, status: 'Completed', time: '45 min ago' },
-                    { id: '4926', customer: 'David Chen', items: 5, total: 1240, status: 'Pending', time: '1h ago' },
-                ].map(order => (
-                    <div key={order.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold ${order.status === 'Completed' ? 'bg-teal-50 text-teal-600' : 'bg-indigo-50 text-indigo-600'
-                                }`}>
-                                #{order.id.slice(-2)}
-                            </div>
-                            <div>
-                                <div className="text-sm font-bold text-slate-800 uppercase tracking-tight">Order #{order.id}</div>
-                                <div className="text-xs text-slate-500 font-medium">{order.customer} • {order.items} items</div>
-                            </div>
+                {orders.length === 0 ? (
+                    <div className="p-20 text-center">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                            <ShoppingBag size={24} />
                         </div>
-
-                        <div className="flex items-center gap-8">
-                            <div className="hidden sm:block text-right">
-                                <div className="text-xs text-slate-400 font-bold uppercase">{order.time}</div>
-                                <div className="text-sm font-bold text-slate-800">₹{order.total}</div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${order.status === 'Completed'
-                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                    : order.status === 'Packing'
-                                        ? 'bg-amber-50 text-amber-600 border-amber-100'
-                                        : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                                    }`}>
-                                    {order.status}
-                                </span>
-                                <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-slate-200">
-                                    <ChevronRight size={18} />
-                                </button>
-                            </div>
-                        </div>
+                        <h3 className="text-sm font-bold text-slate-400">No active orders yet.</h3>
                     </div>
-                ))}
+                ) : (
+                    orders.map(order => (
+                        <div key={order.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-slate-400">
+                                    #{order.id.slice(-2)}
+                                </div>
+                                <div>
+                                    <div className="text-sm font-black text-slate-900 uppercase tracking-tight">Order #{order.id}</div>
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                        {order.customerName} • {order.items.length} items
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-8">
+                                <div className="hidden sm:block text-right">
+                                    <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                    <div className="text-sm font-black text-slate-900">₹{order.total}</div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${order.status === 'Completed'
+                                        ? 'bg-teal-50 text-teal-600 border-teal-100'
+                                        : order.status === 'Packing'
+                                            ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                                            : order.status === 'Ready'
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                : 'bg-amber-50 text-amber-600 border-amber-100'
+                                        }`}>
+                                        {order.status}
+                                    </span>
+                                    
+                                    {/* Quick Status Toggles */}
+                                    <div className="flex gap-1">
+                                        {order.status === 'Pending' && (
+                                            <button 
+                                                onClick={() => handleUpdateOrderStatus(order.id, 'Packing')}
+                                                className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all text-[10px] font-black uppercase"
+                                                title="Start Packing"
+                                            >
+                                                Pack
+                                            </button>
+                                        )}
+                                        {order.status === 'Packing' && (
+                                            <button 
+                                                onClick={() => handleUpdateOrderStatus(order.id, 'Ready')}
+                                                className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all text-[10px] font-black uppercase"
+                                                title="Mark Ready for Pickup"
+                                            >
+                                                Ready
+                                            </button>
+                                        )}
+                                        {order.status === 'Ready' && (
+                                            <button 
+                                                onClick={() => handleUpdateOrderStatus(order.id, 'Completed')}
+                                                className="p-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all text-[10px] font-black uppercase"
+                                                title="Deliver & Complete"
+                                            >
+                                                Done
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {order.pickupTime && (
+                                        <div className="flex items-center gap-1 bg-slate-50 text-slate-500 px-2 py-1 rounded-lg text-[9px] font-bold">
+                                            <Clock size={10} /> {order.pickupTime}
+                                        </div>
+                                    )}
+                                    <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-white rounded-xl transition-all border border-transparent hover:border-slate-200">
+                                        <ChevronRight size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );

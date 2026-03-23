@@ -63,3 +63,15 @@ export interface SearchResult {
   distance: number;
   isExternalApi?: boolean;
 }
+
+export interface Order {
+  id: string;
+  pharmacyId: string;
+  customerId: string;
+  customerName: string;
+  items: CartItem[];
+  total: number;
+  status: 'Pending' | 'Packing' | 'Ready' | 'Completed' | 'Cancelled';
+  createdAt: string;
+  pickupTime?: string;
+}

@@ -1,6 +1,6 @@
 import { db } from './firebase';
-import { collection, query, where, getDocs, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
-import { Medicine, Pharmacy, SearchResult, Coordinate } from '../types';
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Medicine, Pharmacy, SearchResult, Coordinate, Order } from '../types';
 
 // Haversine formula to calculate distance in KM
 const calculateDistance = (coord1: Coordinate, coord2: Coordinate): number => {
@@ -156,8 +156,6 @@ export const saveExternalResults = async (results: SearchResult[]) => {
 // Save a new medicine globally
 export const saveGlobalMedicine = async (medicine: Medicine) => {
     try {
-        const { db } = await import('./firebase');
-        const { doc, setDoc } = await import('firebase/firestore');
         const docRef = doc(db, 'medicines', medicine.id);
         await setDoc(docRef, medicine, { merge: true });
         console.log(`✅ Global medicine saved: ${medicine.name}`);
@@ -167,3 +165,34 @@ export const saveGlobalMedicine = async (medicine: Medicine) => {
     }
 };
 
+// Create a new order
+export const createOrder = async (order: Omit<Order, 'id'>) => {
+    try {
+        const orderId = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const orderRef = doc(db, 'orders', orderId);
+        await setDoc(orderRef, { ...order, id: orderId });
+        console.log(`✅ Order created: ${orderId}`);
+        return orderId;
+    } catch (error) {
+        console.error("Error creating order:", error);
+        throw error;
+    }
+};
+
+// Save user feedback
+export const addFeedback = async (rating: number, comment: string) => {
+    try {
+        const feedbackId = `fb-${Date.now()}`;
+        const feedbackRef = doc(db, 'feedbacks', feedbackId);
+        await setDoc(feedbackRef, {
+            id: feedbackId,
+            rating,
+            comment,
+            createdAt: new Date().toISOString()
+        });
+        console.log(`✅ Feedback saved: ${feedbackId}`);
+    } catch (error) {
+        console.error("Error saving feedback:", error);
+        throw error;
+    }
+};
