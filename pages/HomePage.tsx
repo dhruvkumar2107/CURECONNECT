@@ -176,9 +176,22 @@ export const HomePage = () => {
         ))}
       </div>
 
-      {!isSearching && results.length === 0 && (
-        <div className="text-center py-12 text-slate-400">
-          <p>Search for a medicine to see real-time stock.</p>
+      {!isSearching && results.length === 0 && query.length >= 3 && (
+        <div className="text-center py-20 animate-in fade-in duration-700">
+          <div className="bg-slate-50 inline-flex p-8 rounded-[2rem] border border-slate-100 mb-6">
+            <Search size={40} className="text-slate-200" />
+          </div>
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">No medicines found</h3>
+          <p className="text-slate-400 mt-2 max-w-xs mx-auto font-medium text-[10px] uppercase tracking-widest leading-relaxed">
+            We couldn't find "{query}" in our local network or global search.
+          </p>
+        </div>
+      )}
+
+      {isSearching && (
+        <div className="flex items-center justify-center gap-3 py-10 text-teal-600 animate-pulse">
+          <div className="w-2 h-2 rounded-full bg-teal-600"></div>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Querying Global Network...</p>
         </div>
       )}
 

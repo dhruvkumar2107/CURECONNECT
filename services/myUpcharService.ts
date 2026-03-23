@@ -14,8 +14,11 @@ export const searchMedicinesFromMyUpchar = async (query: string): Promise<Search
         
         console.log(`📡 [API] Response Status: ${response.status}`);
         const data = await response.json();
-        console.log("📡 [API] Full Data Keys:", Object.keys(data));
-        console.log("📡 [API] Full Data String:", JSON.stringify(data).substring(0, 500));
+        console.log("📡 [API] Data received items count:", data?.data?.length || 0);
+        console.log("📡 [API] Response Data Status:", data?.status);
+        if (data.status !== 'OK') {
+            console.warn("📡 [API] Warning: Response status is not OK.", data);
+        }
 
         if (data.status === 'OK' && data.data) {
             return data.data.map((item: any) => ({

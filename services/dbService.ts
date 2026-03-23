@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, query, where, getDocs, onSnapshot, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc, setDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Medicine, Pharmacy, SearchResult, Coordinate, Order } from '../types';
 
 // Haversine formula to calculate distance in KM
@@ -182,17 +182,18 @@ export const createOrder = async (order: Omit<Order, 'id'>) => {
 // Save user feedback
 export const addFeedback = async (rating: number, comment: string) => {
     try {
-        const feedbackId = `fb-${Date.now()}`;
-        const feedbackRef = doc(db, 'feedbacks', feedbackId);
-        await setDoc(feedbackRef, {
-            id: feedbackId,
+        const feedbackRef = collection(db, 'feedbacks');
+        // Using addDoc for automatic ID generation and server-side timestamp
+        const docRef = await addDoc(feedbackRef, {
             rating,
             comment,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(), // Keeping both for local and server
+            timestamp: serverTimestamp()
         });
-        console.log(`✅ Feedback saved: ${feedbackId}`);
+        console.log(`✅ Feedback saved in "feedbacks" with ID: ${docRef.id}`);
+        return docRef.id;
     } catch (error) {
-        console.error("Error saving feedback:", error);
+        console.error("Error saving feedback to Firestore:", error);
         throw error;
     }
 };
