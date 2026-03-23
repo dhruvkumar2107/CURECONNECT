@@ -14,7 +14,6 @@ import { PartnershipDashboard } from './pages/PartnershipDashboard';
 import { RemindersPage } from './pages/RemindersPage';
 import { PartnerSignUpPage } from './pages/PartnerSignUpPage';
 import { TeleconsultationPage } from './pages/TeleconsultationPage';
-import { AIChatbot } from './components/AIChatbot';
 import { TourGuide } from './components/TourGuide';
 
 const App = () => {
@@ -46,7 +45,6 @@ const App = () => {
           <footer className="bg-slate-900 text-slate-400 py-6 text-center text-sm">
             <p>© {new Date().getFullYear()} CureConnect. Real-time Medicine Finder.</p>
           </footer>
-          <AIChatbot />
         </div>
       </HashRouter>
     </AppProvider>

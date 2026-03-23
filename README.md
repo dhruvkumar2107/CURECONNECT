@@ -8,28 +8,16 @@ CureConnect is a comprehensive healthcare platform designed to bridge the gap be
 
 ### 1. Real-time Medicine Search
 Find medicines instantly across a network of local pharmacies and hubs.
-- **Smart Search**: Search by brand name or generic name.
-- **AI Interpretation**: Can't remember the exact spelling? Our AI interprets your query (e.g., "headache" -> "Paracetamol").
+- **Direct Search**: Search by brand name or generic name.
 - **Filters**: Filter by "Hubs Only" or "Local Stores".
 - **Price Sort**: Find the most affordable options.
 
 ![Search Results](screenshots/search_results.png)
 
-### 2. AI Pharmacist Chatbot
-Your 24/7 health assistant powered by Google Gemini.
-- **Ask about medicine side effects, dosage, or alternatives.**
-- **Get instant, safe, and concise health information.**
-- **Context-Aware**: Remembers your conversation history for better assistance.
-
-![AI Chatbot](screenshots/ai_chatbot.png)
-
-### 3. Prescription Analysis
-Upload your prescription and let AI do the work.
-- **Image Recognition**: Automatically extracts medicine names and dosages from prescription images.
-- **One-Click Add**: Add extracted medicines directly to your cart.
+### 2. Prescription Upload
+Upload your prescription for pharmacist review.
+- **Easy Upload**: Securely upload prescription images.
 - **Earn Rewards**: Get points for every valid prescription upload.
-
-![Upload Prescription](screenshots/upload_rx.png)
 
 ### 4. Emergency SOS Mode
 Critical support when you need it most.
@@ -60,7 +48,7 @@ Empowering pharmacies to manage their business.
 
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **Backend/Database**: Firebase (Firestore, Auth)
-- **AI Integration**: Google Gemini API (via Google Gen AI SDK)
+- **AI Integration**: None (Simplified version)
 - **State Management**: React Context API
 - **Routing**: React Router DOM
 - **Icons**: Lucide React
@@ -73,9 +61,9 @@ Empowering pharmacies to manage their business.
 ```
 cureconnect/
 ├── src/
-│   ├── components/      # Reusable UI components (Header, PharmacyCard, AIChatbot, etc.)
+│   ├── components/      # Reusable UI components (Header, PharmacyCard, etc.)
 │   ├── pages/           # Main application pages (HomePage, CartPage, etc.)
-│   ├── services/        # API and Database services (firebase.ts, geminiService.ts)
+│   ├── services/        # API and Database services (firebase.ts, dbService.ts)
 │   ├── context/         # Global state management (AppContext.tsx)
 │   ├── types/           # TypeScript interfaces and types
 │   └── constants.ts     # Mock data and configuration constants
@@ -143,9 +131,8 @@ To test the application, you can use the following demo credentials or create a 
 
 ## 🔧 Troubleshooting
 
-- **AI Features Not Working?**
-  - Ensure your `GEMINI_API_KEY` is correctly set in the `.env` file.
-  - Restart the development server after changing `.env`.
+- **Medicines Not Found?**
+  - Our database grows as users search for new medicines. If a result is missing, it will automatically sync from our partner API on the next search.
 
 - **Location Not Detected?**
   - Allow browser location permissions when prompted.

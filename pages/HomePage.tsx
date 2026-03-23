@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext';
 import { SearchResult } from '../types';
 import { PharmacyCard } from '../components/PharmacyCard';
 import { searchMedicinesRealTime, saveExternalResults } from '../services/dbService';
-import { getAlternativeMedicines, interpretSearchQuery } from '../services/geminiService';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { FeedbackSection } from '../components/FeedbackSection';
 
@@ -15,7 +14,6 @@ export const HomePage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [filter, setFilter] = useState<'Hub' | 'Local Store' | undefined>(undefined);
   const [sortByPrice, setSortByPrice] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState<any>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,19 +21,11 @@ export const HomePage = () => {
 
     setIsSearching(true);
     setResults([]);
-    setAiSuggestion(null);
 
     try {
-      // 1. Interpret Query with AI (e.g. "headache" -> ["Paracetamol", ...])
-      const searchTerms = await interpretSearchQuery(query);
-      console.log("Interpreted Search Terms:", searchTerms);
-
-      // 2. Search DB for all terms
-      const searchPromises = searchTerms.map(term =>
-        searchMedicinesRealTime(term, userLocation, filter)
-      );
-
-      const resultsArrays = await Promise.all(searchPromises);
+      // Search DB for the query directly (No AI interpretation)
+      const allResultsFromDb = await searchMedicinesRealTime(query, userLocation, filter);
+      
       // 2b. Search myUpchar API
       const myUpcharResults = await searchMedicinesFromMyUpchar(query);
       
@@ -44,7 +34,7 @@ export const HomePage = () => {
         saveExternalResults(myUpcharResults);
       }
 
-      let allResults = [...resultsArrays.flat(), ...myUpcharResults];
+      let allResults = [...allResultsFromDb, ...myUpcharResults];
 
       // Remove duplicates based on pharmacyId + medicineId
       const seen = new Set();
@@ -61,14 +51,6 @@ export const HomePage = () => {
       }
 
       setResults(allResults);
-
-      // 4. If no results, ask AI for alternatives
-      if (allResults.length === 0) {
-        const alternative = await getAlternativeMedicines(query, "Generic");
-        if (alternative) {
-          setAiSuggestion(alternative);
-        }
-      }
 
     } catch (error) {
       console.error("Search failed:", error);
@@ -131,34 +113,6 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* AI Suggestion */}
-      {aiSuggestion && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 mb-8 animate-fade-in">
-          <h3 className="text-indigo-900 font-bold text-lg mb-2">💡 AI Suggestion</h3>
-          <p className="text-indigo-800 mb-4">
-            "{query}" seems unavailable. Consider <strong>{aiSuggestion.genericName}</strong>.
-            <br />
-            <span className="text-sm opacity-80">{aiSuggestion.reason}</span>
-          </p>
-          {aiSuggestion.comparison && (
-            <div className="bg-white/50 p-3 rounded-lg text-sm text-indigo-900 mb-4">
-              <p><strong>Generic vs Branded:</strong> {aiSuggestion.comparison.genericVsBranded}</p>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {aiSuggestion.suggestedSearchTerms.map((term: string) => (
-              <button
-                key={term}
-                onClick={() => { setQuery(term); handleSearch({ preventDefault: () => { } } as any); }}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors"
-              >
-                Search "{term}"
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Results */}
       <div className="grid md:grid-cols-2 gap-4">
         {results.map((result, idx) => (
@@ -182,7 +136,7 @@ export const HomePage = () => {
         ))}
       </div>
 
-      {!isSearching && results.length === 0 && !aiSuggestion && (
+      {!isSearching && results.length === 0 && (
         <div className="text-center py-12 text-slate-400">
           <p>Search for a medicine to see real-time stock.</p>
         </div>
