@@ -2,14 +2,15 @@ import { Medicine, SearchResult } from '../types';
 
 // NOTE: In a real production app, the API key should be stored in an environment variable.
 // Retrieve the API key from environment variables (Vite uses import.meta.env)
-const MYUPCHAR_API_KEY = import.meta.env.VITE_MYUPCHAR_API_KEY;
+const MYUPCHAR_API_KEY = (import.meta as any).env.VITE_MYUPCHAR_API_KEY;
 
 export const searchMedicinesFromMyUpchar = async (query: string): Promise<SearchResult[]> => {
     if (!query || query.length < 3) return [];
 
     try {
         console.log(`📡 [API] Searching myUpchar for: "${query}"...`);
-        const response = await fetch(`https://beta.myupchar.com/api/medicine/search?api_key=${MYUPCHAR_API_KEY}&name=${encodeURIComponent(query)}`);
+        // Note: Switching from beta.myupchar.com to www.myupchar.com as the beta might be returns 0.
+        const response = await fetch(`https://www.myupchar.com/api/medicine/search?api_key=${MYUPCHAR_API_KEY}&name=${encodeURIComponent(query)}`);
         
         console.log(`📡 [API] Response Status: ${response.status}`);
         const data = await response.json();

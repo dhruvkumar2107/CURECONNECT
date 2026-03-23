@@ -20,20 +20,16 @@ const deg2rad = (deg: number): number => {
     return deg * (Math.PI / 180);
 };
 
-export const searchMedicinesRealTime = async (
+export const searchMedicinesSubscription = (
     queryText: string,
     userLocation: Coordinate | null,
-    filterType?: 'Hub' | 'Local Store'
-): Promise<SearchResult[]> => {
+    filterType: 'Hub' | 'Local Store' | undefined,
+    onUpdate: (results: SearchResult[]) => void
+) => {
     const normalizedQuery = queryText.toLowerCase();
-    const results: SearchResult[] = [];
 
-    try {
-        // 1. Get all medicines (In a real app, use Algolia/Elasticsearch for text search)
-        // For this demo, we fetch all and filter client-side or use simple Firestore queries
-        const medicinesRef = collection(db, 'medicines');
-        const medicinesSnap = await getDocs(medicinesRef);
-
+    // Listen to Medicines collection
+    const unsubMedicines = onSnapshot(collection(db, 'medicines'), (medicinesSnap) => {
         const matchingMedicines: Medicine[] = [];
         medicinesSnap.forEach(doc => {
             const data = doc.data() as Medicine;
@@ -46,49 +42,51 @@ export const searchMedicinesRealTime = async (
             }
         });
 
-        if (matchingMedicines.length === 0) return [];
-
-        // 2. Get all pharmacies (Again, optimize for production)
-        const pharmaciesRef = collection(db, 'pharmacies');
-        const pharmaciesSnap = await getDocs(pharmaciesRef);
-
-        const pharmacies: Pharmacy[] = [];
-        pharmaciesSnap.forEach(doc => {
-            const data = doc.data() as Pharmacy;
-            if (!filterType || data.type === filterType) {
-                pharmacies.push(data);
-            }
-        });
-
-        // 3. Match medicines to pharmacies
-        matchingMedicines.forEach(medicine => {
-            pharmacies.forEach(pharmacy => {
-                const stock = pharmacy.inventory.find(i => i.medicineId === medicine.id);
-
-                if (stock) {
-                    const distance = userLocation ? calculateDistance(userLocation, pharmacy.location) : 0;
-                    results.push({
-                        pharmacy,
-                        medicine,
-                        stock,
-                        distance
-                    });
-                }
-            });
-        });
-
-        // 4. Sort
-        if (userLocation) {
-            results.sort((a, b) => a.distance - b.distance);
-        } else {
-            results.sort((a, b) => b.stock.quantity - a.stock.quantity);
+        if (matchingMedicines.length === 0) {
+            onUpdate([]);
+            return;
         }
 
-    } catch (error) {
-        console.error("Error searching medicines:", error);
-    }
+        // Listen to Pharmacies collection for those medicines
+        const unsubPharmacies = onSnapshot(collection(db, 'pharmacies'), (pharmaciesSnap) => {
+            const results: SearchResult[] = [];
+            const pharmacies: Pharmacy[] = [];
+            
+            pharmaciesSnap.forEach(doc => {
+                const data = doc.data() as Pharmacy;
+                if (!filterType || data.type === filterType) {
+                    pharmacies.push(data);
+                }
+            });
 
-    return results;
+            matchingMedicines.forEach(medicine => {
+                pharmacies.forEach(pharmacy => {
+                    const stock = pharmacy.inventory.find(i => i.medicineId === medicine.id);
+                    if (stock) {
+                        const distance = userLocation ? calculateDistance(userLocation, pharmacy.location) : 0;
+                        results.push({
+                            pharmacy,
+                            medicine,
+                            stock,
+                            distance
+                        });
+                    }
+                });
+            });
+
+            if (userLocation) {
+                results.sort((a, b) => a.distance - b.distance);
+            } else {
+                results.sort((a, b) => b.stock.quantity - a.stock.quantity);
+            }
+
+            onUpdate(results);
+        });
+
+        return unsubPharmacies;
+    });
+
+    return unsubMedicines;
 };
 
 // Listen to real-time updates for a specific pharmacy's inventory

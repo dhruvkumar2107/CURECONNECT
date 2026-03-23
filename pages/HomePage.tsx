@@ -3,7 +3,7 @@ import { Search, MapPin, Filter, ArrowUpDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SearchResult } from '../types';
 import { PharmacyCard } from '../components/PharmacyCard';
-import { searchMedicinesRealTime, saveExternalResults } from '../services/dbService';
+import { searchMedicinesSubscription, saveExternalResults } from '../services/dbService';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { FeedbackSection } from '../components/FeedbackSection';
 
@@ -15,58 +15,67 @@ export const HomePage = () => {
   const [filter, setFilter] = useState<'Hub' | 'Local Store' | undefined>(undefined);
   const [sortByPrice, setSortByPrice] = useState(false);
 
+  const [dbResults, setDbResults] = useState<SearchResult[]>([]);
+  const [apiResults, setApiResults] = useState<SearchResult[]>([]);
+
+  // 1. Real-time DB Subscription
+  useEffect(() => {
+    if (!query.trim() || query.length < 3) {
+      setDbResults([]);
+      return;
+    }
+
+    console.log(`🔄 [Real-time] Subscribing to search: "${query}"`);
+    const unsub = searchMedicinesSubscription(query, userLocation, filter, (newDbResults) => {
+      console.log(`🔄 [Real-time] DB updated: ${newDbResults.length} items`);
+      setDbResults(newDbResults);
+    });
+
+    return () => {
+      console.log(`🔕 [Real-time] Unsubscribing from: "${query}"`);
+      if (unsub) unsub();
+    };
+  }, [query, filter, userLocation]);
+
+  // 2. Combine Results
+  useEffect(() => {
+    let allResults = [...dbResults, ...apiResults];
+
+    // Remove duplicates
+    const seen = new Set();
+    allResults = allResults.filter(item => {
+      const key = `${item.pharmacy.id}-${item.medicine.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (sortByPrice) {
+      allResults.sort((a, b) => a.medicine.price - b.medicine.price);
+    }
+
+    setResults(allResults);
+  }, [dbResults, apiResults, sortByPrice]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
     setIsSearching(true);
-    setResults([]);
-
+    // API results are one-time, but DB results are real-time via the useEffect above.
+    
     try {
-      // 1. Search DB
-      let allResultsFromDb: SearchResult[] = [];
-      try {
-        allResultsFromDb = await searchMedicinesRealTime(query, userLocation, filter);
-      } catch (dbError: any) {
-        console.error("DB Search failed:", dbError);
-        if (dbError.code === 'permission-denied') {
-          alert("Firebase Permission Error: Please update your Firestore Security Rules in the Firebase Console (Rules tab) to 'allow read, write: if true;'.");
-        }
-      }
-
-      // 2. Search API
-      let myUpcharResults: SearchResult[] = [];
-      try {
-        myUpcharResults = await searchMedicinesFromMyUpchar(query);
-        console.log(`API returned ${myUpcharResults.length} results`);
-      } catch (apiError) {
-        console.error("API Search failed:", apiError);
-      }
+      // Search API
+      const myUpcharResults = await searchMedicinesFromMyUpchar(query);
+      console.log(`📡 [API] Search returned ${myUpcharResults.length} results`);
+      setApiResults(myUpcharResults);
       
-      // Sync external data to DB in background (silent fail)
+      // Sync external data to DB in background
       if (myUpcharResults.length > 0) {
         saveExternalResults(myUpcharResults).catch(e => console.error("Background sync failed:", e));
       }
-
-      let allResults = [...allResultsFromDb, ...myUpcharResults];
-
-      // Remove duplicates
-      const seen = new Set();
-      allResults = allResults.filter(item => {
-        const key = `${item.pharmacy.id}-${item.medicine.id}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      if (sortByPrice) {
-        allResults.sort((a, b) => a.medicine.price - b.medicine.price);
-      }
-
-      setResults(allResults);
-
     } catch (error) {
-      console.error("Total Search failed:", error);
+      console.error("API Search failed:", error);
     } finally {
       setIsSearching(false);
     }
