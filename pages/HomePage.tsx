@@ -23,20 +23,34 @@ export const HomePage = () => {
     setResults([]);
 
     try {
-      // Search DB for the query directly (No AI interpretation)
-      const allResultsFromDb = await searchMedicinesRealTime(query, userLocation, filter);
+      // 1. Search DB
+      let allResultsFromDb: SearchResult[] = [];
+      try {
+        allResultsFromDb = await searchMedicinesRealTime(query, userLocation, filter);
+      } catch (dbError: any) {
+        console.error("DB Search failed:", dbError);
+        if (dbError.code === 'permission-denied') {
+          alert("Firebase Permission Error: Please update your Firestore Security Rules in the Firebase Console (Rules tab) to 'allow read, write: if true;'.");
+        }
+      }
+
+      // 2. Search API
+      let myUpcharResults: SearchResult[] = [];
+      try {
+        myUpcharResults = await searchMedicinesFromMyUpchar(query);
+        console.log(`API returned ${myUpcharResults.length} results`);
+      } catch (apiError) {
+        console.error("API Search failed:", apiError);
+      }
       
-      // 2b. Search myUpchar API
-      const myUpcharResults = await searchMedicinesFromMyUpchar(query);
-      
-      // Sync external data to DB in background
+      // Sync external data to DB in background (silent fail)
       if (myUpcharResults.length > 0) {
-        saveExternalResults(myUpcharResults);
+        saveExternalResults(myUpcharResults).catch(e => console.error("Background sync failed:", e));
       }
 
       let allResults = [...allResultsFromDb, ...myUpcharResults];
 
-      // Remove duplicates based on pharmacyId + medicineId
+      // Remove duplicates
       const seen = new Set();
       allResults = allResults.filter(item => {
         const key = `${item.pharmacy.id}-${item.medicine.id}`;
@@ -45,7 +59,6 @@ export const HomePage = () => {
         return true;
       });
 
-      // 3. Sort by Price if enabled
       if (sortByPrice) {
         allResults.sort((a, b) => a.medicine.price - b.medicine.price);
       }
@@ -53,7 +66,7 @@ export const HomePage = () => {
       setResults(allResults);
 
     } catch (error) {
-      console.error("Search failed:", error);
+      console.error("Total Search failed:", error);
     } finally {
       setIsSearching(false);
     }
