@@ -106,38 +106,41 @@ export const subscribeToPharmacyInventory = (pharmacyId: string, callback: (inve
  * This ensures the database grows as users search for new medicines
  */
 export const saveExternalResults = async (results: SearchResult[]) => {
-    if (results.length === 0) return;
+    if (results.length === 0) {
+        console.log("Sync skipped: No results to save.");
+        return;
+    }
 
-    console.log(`Syncing ${results.length} results to Firestore...`);
+    console.log(`📡 [Sync] Attempting to save ${results.length} items to Firestore...`);
 
     try {
         for (const result of results) {
             const { medicine, pharmacy } = result;
 
-            // 1. Save Medicine (Deduplicated by ID)
+            console.log(`📝 [Sync] Saving medicine: ${medicine.name} (${medicine.id})`);
             const medicineRef = doc(db, 'medicines', medicine.id);
             await setDoc(medicineRef, medicine, { merge: true });
 
-            // 2. Save Pharmacy (Deduplicated by ID)
+            console.log(`📝 [Sync] Checking pharmacy: ${pharmacy.name} (${pharmacy.id})`);
             const pharmacyRef = doc(db, 'pharmacies', pharmacy.id);
             const pharmacySnap = await getDoc(pharmacyRef);
 
             if (!pharmacySnap.exists()) {
-                // If it's a new pharmacy (like myupchar-online), save its basic info
+                console.log(`🆕 [Sync] Adding new pharmacy info: ${pharmacy.id}`);
                 await setDoc(pharmacyRef, pharmacy, { merge: true });
             } else {
-                // If the pharmacy exists, we want to ensure this medicine is in its inventory
                 const existingPharmacy = pharmacySnap.data() as Pharmacy;
                 const hasMedicine = existingPharmacy.inventory.some(i => i.medicineId === medicine.id);
 
                 if (!hasMedicine) {
+                    console.log(`➕ [Sync] Adding ${medicine.name} to existing pharmacy inventory: ${pharmacy.id}`);
                     const updatedInventory = [...existingPharmacy.inventory, result.stock];
                     await setDoc(pharmacyRef, { inventory: updatedInventory }, { merge: true });
                 }
             }
         }
-        console.log("Sync complete!");
+        console.log("✅ [Sync] Successfully synced all items!");
     } catch (error) {
-        console.error("Error syncing external data:", error);
+        console.error("❌ [Sync] FAILED to save data:", error);
     }
 };
