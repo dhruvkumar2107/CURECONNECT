@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard,
     Package,
@@ -23,7 +24,9 @@ import {
     Database,
     Upload,
     Zap,
-    History
+    History,
+    Store,
+    MapPin
 } from 'lucide-react';
 import { PHARMACIES, MEDICINES } from '../constants';
 import { useApp } from '../context/AppContext';
