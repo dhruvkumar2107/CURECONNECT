@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc, setDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Medicine, Pharmacy, SearchResult, Coordinate, Order } from '../types';
+import { MEDICINES as CONST_MEDICINES } from '../constants';
 
 // Haversine formula to calculate distance in KM
 const calculateDistance = (coord1: Coordinate, coord2: Coordinate): number => {
@@ -29,8 +30,6 @@ export const searchMedicinesSubscription = (
     const normalizedQuery = queryText.toLowerCase();
 
     // 1. Merge Static and Firestore Medicines
-    const { MEDICINES: CONST_MEDICINES } = require('../constants');
-    
     const unsubMedicines = onSnapshot(collection(db, 'medicines'), (medicinesSnap) => {
         const firestoreMeds: Medicine[] = [];
         medicinesSnap.forEach(doc => firestoreMeds.push(doc.data() as Medicine));
@@ -79,13 +78,12 @@ export const searchMedicinesSubscription = (
                 });
             });
 
-            // AI-Powered Sorting: Distance -> Availability -> Stock Level
+            // AI-Powered Sorting
             results.sort((a, b) => {
                 const distA = a.distance || 0;
                 const distB = b.distance || 0;
-                
-                if (Math.abs(distA - distB) < 1) { // If same distance (~1km)
-                    return b.stock.quantity - a.stock.quantity; // More stock first
+                if (Math.abs(distA - distB) < 1) {
+                    return b.stock.quantity - a.stock.quantity;
                 }
                 return distA - distB;
             });
@@ -99,7 +97,6 @@ export const searchMedicinesSubscription = (
     return unsubMedicines;
 };
 
-// Listen to real-time updates for a specific pharmacy's inventory
 export const subscribeToPharmacyInventory = (pharmacyId: string, callback: (inventory: any[]) => void) => {
     const unsub = onSnapshot(doc(db, 'pharmacies', pharmacyId), (doc) => {
         if (doc.exists()) {
@@ -109,69 +106,48 @@ export const subscribeToPharmacyInventory = (pharmacyId: string, callback: (inve
     return unsub;
 };
 
-/**
- * Saves results from external API into Firestore collections
- * This ensures the database grows as users search for new medicines
- */
 export const saveExternalResults = async (results: SearchResult[]) => {
-    if (results.length === 0) {
-        console.log("Sync skipped: No results to save.");
-        return;
-    }
-
-    console.log(`📡 [Sync] Attempting to save ${results.length} items to Firestore...`);
-
+    if (results.length === 0) return;
     try {
         for (const result of results) {
             const { medicine, pharmacy } = result;
-
-            console.log(`📝 [Sync] Saving medicine: ${medicine.name} (${medicine.id})`);
             const medicineRef = doc(db, 'medicines', medicine.id);
             await setDoc(medicineRef, medicine, { merge: true });
 
-            console.log(`📝 [Sync] Checking pharmacy: ${pharmacy.name} (${pharmacy.id})`);
             const pharmacyRef = doc(db, 'pharmacies', pharmacy.id);
             const pharmacySnap = await getDoc(pharmacyRef);
 
             if (!pharmacySnap.exists()) {
-                console.log(`🆕 [Sync] Adding new pharmacy info: ${pharmacy.id}`);
                 await setDoc(pharmacyRef, pharmacy, { merge: true });
             } else {
                 const existingPharmacy = pharmacySnap.data() as Pharmacy;
                 const hasMedicine = existingPharmacy.inventory.some(i => i.medicineId === medicine.id);
-
                 if (!hasMedicine) {
-                    console.log(`➕ [Sync] Adding ${medicine.name} to existing pharmacy inventory: ${pharmacy.id}`);
                     const updatedInventory = [...existingPharmacy.inventory, result.stock];
                     await setDoc(pharmacyRef, { inventory: updatedInventory }, { merge: true });
                 }
             }
         }
-        console.log("✅ [Sync] Successfully synced all items!");
     } catch (error) {
         console.error("❌ [Sync] FAILED to save data:", error);
     }
 };
 
-// Save a new medicine globally
 export const saveGlobalMedicine = async (medicine: Medicine) => {
     try {
         const docRef = doc(db, 'medicines', medicine.id);
         await setDoc(docRef, medicine, { merge: true });
-        console.log(`✅ Global medicine saved: ${medicine.name}`);
     } catch (error) {
         console.error("Error saving global medicine:", error);
         throw error;
     }
 };
 
-// Create a new order
 export const createOrder = async (order: Omit<Order, 'id'>) => {
     try {
         const orderId = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const orderRef = doc(db, 'orders', orderId);
         await setDoc(orderRef, { ...order, id: orderId });
-        console.log(`✅ Order created: ${orderId}`);
         return orderId;
     } catch (error) {
         console.error("Error creating order:", error);
@@ -179,18 +155,16 @@ export const createOrder = async (order: Omit<Order, 'id'>) => {
     }
 };
 
-// Save user feedback
 export const addFeedback = async (rating: number, comment: string) => {
     try {
         const feedbackRef = collection(db, 'feedbacks');
-        // Using addDoc for automatic ID generation and server-side timestamp
         const docRef = await addDoc(feedbackRef, {
             rating,
             comment,
-            createdAt: new Date().toISOString(), // Keeping both for local and server
+            createdAt: new Date().toISOString(),
             timestamp: serverTimestamp()
         });
-        console.log(`✅ Feedback saved in "feedbacks" with ID: ${docRef.id}`);
+        console.log(`✅ Feedback saved: ${docRef.id}`);
         return docRef.id;
     } catch (error) {
         console.error("Error saving feedback to Firestore:", error);
