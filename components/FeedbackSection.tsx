@@ -94,25 +94,37 @@ export const FeedbackSection = () => {
                     <form onSubmit={handleSubmit} className="space-y-10">
                         <div>
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">Select a Rating</label>
-                            <div className="flex justify-between items-center bg-slate-800/50 p-6 rounded-[2rem] border border-white/5">
+                            <div className="flex justify-between items-center bg-slate-800/50 p-6 rounded-[2rem] border border-white/5 shadow-inner">
                                 {ratings.map((r) => (
                                     <button
                                         key={r.value}
                                         type="button"
-                                        onClick={() => setRating(r.value)}
-                                        className={`group relative flex flex-col items-center transition-all duration-500 ${
-                                            rating === r.value ? 'scale-125' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
+                                        onClick={() => {
+                                            console.log(`⭐ Selected rating: ${r.value}`);
+                                            setRating(r.value);
+                                        }}
+                                        className={`group relative flex flex-col items-center transition-all duration-500 hover:scale-125 focus:outline-none ${
+                                            rating === null 
+                                            ? 'opacity-80 scale-100' 
+                                            : rating === r.value 
+                                                ? 'opacity-100 scale-125' 
+                                                : 'opacity-20 grayscale scale-90'
                                         }`}
                                     >
-                                        <span className={`text-4xl transition-all duration-300 ${rating === r.value ? 'drop-shadow-[0_0_15px_rgba(45,212,191,0.5)]' : ''}`}>
+                                        <span className={`text-5xl transition-all duration-300 drop-shadow-sm ${rating === r.value ? 'drop-shadow-[0_0_20px_rgba(45,212,191,0.8)]' : 'group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]'}`}>
                                             {r.label}
                                         </span>
-                                        <span className={`absolute -bottom-6 text-[8px] font-black uppercase tracking-widest text-teal-400 transition-all duration-300 ${rating === r.value ? 'opacity-100' : 'opacity-0'}`}>
+                                        <span className={`absolute -bottom-8 text-[9px] font-black uppercase tracking-widest text-teal-400 transition-all duration-300 ${rating === r.value ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                                             {r.text}
                                         </span>
                                     </button>
                                 ))}
                             </div>
+                            {rating === null && !isSubmitting && (
+                                <p className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest mt-4 text-center animate-pulse">
+                                    ↑ Please select an emoji to unlock the submit button
+                                </p>
+                            )}
                         </div>
 
                         <div>
@@ -126,7 +138,7 @@ export const FeedbackSection = () => {
                         </div>
 
                         {error && (
-                            <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl text-rose-400 text-[10px] font-black uppercase tracking-widest text-center animate-pulse">
+                            <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl text-rose-400 text-[10px] font-black uppercase tracking-widest text-center animate-bounce">
                                 {error}
                             </div>
                         )}
@@ -134,14 +146,18 @@ export const FeedbackSection = () => {
                         <button
                             type="submit"
                             disabled={isSubmitting || rating === null}
-                            className="w-full h-16 bg-white hover:bg-teal-500 text-slate-900 hover:text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 transition-all duration-500 shadow-xl shadow-black/20 disabled:opacity-20 disabled:cursor-not-allowed transform active:scale-[0.98] group"
+                            className={`w-full h-16 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 transition-all duration-500 shadow-xl transform active:scale-[0.98] group ${
+                                rating === null 
+                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' 
+                                : 'bg-white hover:bg-teal-500 text-slate-900 hover:text-white shadow-teal-500/20 hover:shadow-teal-500/40'
+                            }`}
                         >
                             {isSubmitting ? (
                                 <div className="w-6 h-6 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin"></div>
                             ) : (
                                 <>
-                                    <span>Send Feedback</span>
-                                    <Send size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-500" />
+                                    <span>{rating === null ? 'Select Rating First' : 'Send Feedback'}</span>
+                                    <Send size={18} className={`${rating === null ? 'opacity-20' : 'group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-500'}`} />
                                 </>
                             )}
                         </button>
