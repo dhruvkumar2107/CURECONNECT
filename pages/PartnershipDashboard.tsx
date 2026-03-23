@@ -192,40 +192,6 @@ export const PartnershipDashboard = () => {
         setNewMedicineRestock('');
     };
 
-        const newItem = {
-            medicineId: targetMedicineId,
-            quantity: newMedicineQty,
-            lastUpdated: new Date().toISOString(),
-            expiryDate: newMedicineExpiry ? new Date(newMedicineExpiry).toISOString() : undefined,
-            price: newMedicinePrice || MEDICINES.find(m => m.id === targetMedicineId)?.price,
-            restockTime: newMedicineRestock || 'N/A'
-        };
-
-        // Check if already in inventory
-        const existingIdx = inventory.findIndex(i => i.medicineId === targetMedicineId);
-        let updatedInventory;
-        if (existingIdx !== -1) {
-            updatedInventory = [...inventory];
-            updatedInventory[existingIdx] = { ...updatedInventory[existingIdx], ...newItem };
-        } else {
-            updatedInventory = [newItem, ...inventory];
-        }
-
-        await updateFirestoreInventory(updatedInventory);
-
-        setIsAddModalOpen(false);
-        setIsCustomMedicine(false);
-        setSelectedMedicineId('');
-        setCustomName('');
-        setCustomGeneric('');
-        setCustomDescription('');
-        setCustomRequiresPrescription(false);
-        setNewMedicineQty(10);
-        setNewMedicineExpiry('');
-        setNewMedicinePrice(0);
-        setNewMedicineRestock('');
-    };
-
     const handleBulkUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         try {

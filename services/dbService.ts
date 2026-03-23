@@ -28,19 +28,24 @@ export const searchMedicinesSubscription = (
 ) => {
     const normalizedQuery = queryText.toLowerCase();
 
-    // Listen to Medicines collection
+    // 1. Merge Static and Firestore Medicines
+    const { MEDICINES: CONST_MEDICINES } = require('../constants');
+    
     const unsubMedicines = onSnapshot(collection(db, 'medicines'), (medicinesSnap) => {
-        const matchingMedicines: Medicine[] = [];
-        medicinesSnap.forEach(doc => {
-            const data = doc.data() as Medicine;
-            if (
-                data.name.toLowerCase().includes(normalizedQuery) ||
-                data.genericName.toLowerCase().includes(normalizedQuery) ||
-                data.category.toLowerCase().includes(normalizedQuery)
-            ) {
-                matchingMedicines.push(data);
-            }
+        const firestoreMeds: Medicine[] = [];
+        medicinesSnap.forEach(doc => firestoreMeds.push(doc.data() as Medicine));
+
+        // Combine and unique by ID
+        const allAvailableMeds = [...CONST_MEDICINES];
+        firestoreMeds.forEach(fm => {
+            if (!allAvailableMeds.find(m => m.id === fm.id)) allAvailableMeds.push(fm);
         });
+
+        const matchingMedicines = allAvailableMeds.filter(data => 
+            data.name.toLowerCase().includes(normalizedQuery) ||
+            data.genericName.toLowerCase().includes(normalizedQuery) ||
+            data.category.toLowerCase().includes(normalizedQuery)
+        );
 
         if (matchingMedicines.length === 0) {
             onUpdate([]);
@@ -74,11 +79,16 @@ export const searchMedicinesSubscription = (
                 });
             });
 
-            if (userLocation) {
-                results.sort((a, b) => a.distance - b.distance);
-            } else {
-                results.sort((a, b) => b.stock.quantity - a.stock.quantity);
-            }
+            // AI-Powered Sorting: Distance -> Availability -> Stock Level
+            results.sort((a, b) => {
+                const distA = a.distance || 0;
+                const distB = b.distance || 0;
+                
+                if (Math.abs(distA - distB) < 1) { // If same distance (~1km)
+                    return b.stock.quantity - a.stock.quantity; // More stock first
+                }
+                return distA - distB;
+            });
 
             onUpdate(results);
         });
