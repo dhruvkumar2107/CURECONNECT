@@ -16,10 +16,15 @@ export const PartnerLoginPage = () => {
 
     // Redirect when user role is confirmed as partner
     useEffect(() => {
-        if (user?.role === 'partner') {
-            navigate('/partnership-dashboard');
+        if (user) {
+            if (user.role === 'partner') {
+                navigate('/partnership-dashboard');
+            } else if (loading) {
+                setError("This account is not registered as a partner. Please use the member login.");
+                setLoading(false);
+            }
         }
-    }, [user, navigate]);
+    }, [user, navigate, loading]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,7 +33,15 @@ export const PartnerLoginPage = () => {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            console.log("✅ [Auth] Login success. Waiting for role sync...");
+            console.log("✅ [Auth] Login success. Role: ", user?.role);
+            
+            // We don't setLoading(false) here immediately because 
+            // the useEffect will handle the redirect.
+            // But we should have a timeout to reset it if no redirect happens.
+            setTimeout(() => {
+                setLoading(false);
+            }, 3000);
+
         } catch (err: any) {
             setError("Invalid email or password.");
             setLoading(false);

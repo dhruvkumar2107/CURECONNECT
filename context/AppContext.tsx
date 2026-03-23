@@ -11,6 +11,7 @@ interface AppContextType {
   removeFromCart: (medicineId: string, pharmacyId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   user: User | null;
+  setUser: (user: User | null) => void;
   logout: () => void;
   isLoadingLocation: boolean;
   isLoadingAuth: boolean;
@@ -194,6 +195,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       removeFromCart,
       clearCart,
       user,
+      setUser,
       logout,
       isLoadingLocation,
       isLoadingAuth,
