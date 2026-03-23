@@ -90,9 +90,53 @@ export const PartnerLoginPage = () => {
                     </div>
 
                     {error && (
-                        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-                            <AlertCircle size={16} />
-                            {error}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
+                                <AlertCircle size={16} />
+                                {error}
+                            </div>
+                            
+                            {user && user.role === 'user' && !loading && (
+                                <div className="bg-teal-50 p-4 rounded-2xl border border-teal-100 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <h4 className="text-teal-900 font-black text-sm uppercase tracking-wider mb-1">Upgrade Account</h4>
+                                    <p className="text-teal-700 text-xs leading-relaxed mb-4">
+                                        You're currently signed in as a member. Want to manage a pharmacy under this email?
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            setLoading(true);
+                                            try {
+                                                // 1. Create Pharmacy Doc
+                                                await setDoc(doc(db, 'pharmacies', user.id), {
+                                                  id: user.id,
+                                                  name: `${user.name}'s Pharmacy`,
+                                                  address: "Update your address in dashboard",
+                                                  phone: "Add phone number",
+                                                  type: "Local Store",
+                                                  rating: 5,
+                                                  location: { latitude: 12.9716, longitude: 77.5946 },
+                                                  inventory: []
+                                                });
+                                                
+                                                // 2. Update User Role
+                                                await setDoc(doc(db, 'users', user.id), { role: 'partner' }, { merge: true });
+                                                
+                                                // 3. UI Update & Redirect
+                                                window.location.reload(); // Hard refresh to sync everything
+                                            } catch (err) {
+                                                console.error(err);
+                                                setError("Failed to upgrade. Please use the Register Pharmacy page.");
+                                            } finally {
+                                                setLoading(false);
+                                            }
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 bg-teal-600 text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-teal-700 transition-all shadow-md shadow-teal-100"
+                                    >
+                                        <Store size={14} /> Become a Partner Now
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
