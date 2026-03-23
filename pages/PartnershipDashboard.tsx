@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard,
     Package,
@@ -21,15 +20,19 @@ import {
     ShoppingBag,
     FileUp,
     FileDown,
-    Database
+    Database,
+    Upload,
+    Zap,
+    History
 } from 'lucide-react';
 import { PHARMACIES, MEDICINES } from '../constants';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, collection, setDoc } from 'firebase/firestore';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { seedDatabase } from '../services/seed';
+import { saveGlobalMedicine } from '../services/dbService';
 
 type TabType = 'overview' | 'inventory' | 'orders' | 'finances' | 'settings';
 
@@ -42,7 +45,13 @@ export const PartnershipDashboard = () => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [inventory, setInventory] = useState<any[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    
+    // Form State
+    const [isCustomMedicine, setIsCustomMedicine] = useState(false);
     const [selectedMedicineId, setSelectedMedicineId] = useState('');
+    const [customName, setCustomName] = useState('');
+    const [customGeneric, setCustomGeneric] = useState('');
+    const [customCategory, setCustomCategory] = useState('General');
     const [newMedicineQty, setNewMedicineQty] = useState(10);
     const [newMedicineExpiry, setNewMedicineExpiry] = useState('');
     const [newMedicinePrice, setNewMedicinePrice] = useState(0);
@@ -56,28 +65,25 @@ export const PartnershipDashboard = () => {
                 alert("Access Denied. This area is for Pharmacy Partners only.");
                 navigate('/');
             } else {
-                fetchPharmacyData();
+                // Real-time listener for pharmacy document
+                console.log(`🔗 [Dashboard] Subscribing to Pharmacy: ${user.uid}`);
+                const unsub = onSnapshot(doc(db, 'pharmacies', user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setPharmacy(data);
+                        setInventory(data.inventory || []);
+                        console.log("🔗 [Dashboard] Remote update received.");
+                    } else {
+                        console.error("No pharmacy found for this user.");
+                    }
+                }, (error) => {
+                    console.error("Dashboard Subscription Error:", error);
+                });
+
+                return () => unsub();
             }
         }
     }, [user, isLoadingAuth, navigate]);
-
-    const fetchPharmacyData = async () => {
-        if (!user || !user.uid) return;
-        try {
-            const docRef = doc(db, 'pharmacies', user.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                setPharmacy(data);
-                setInventory(data.inventory || []);
-            } else {
-                // If no pharmacy doc exists, create a default one or handle error
-                console.error("No pharmacy found for this user.");
-            }
-        } catch (error) {
-            console.error("Error fetching pharmacy data:", error);
-        }
-    };
 
     const updateFirestoreInventory = async (newInventory: any[]) => {
         if (!user) return;
@@ -96,29 +102,66 @@ export const PartnershipDashboard = () => {
         const updatedInventory = inventory.map(item =>
             item.medicineId === medicineId ? { ...item, quantity: newQty, lastUpdated: new Date().toISOString() } : item
         );
-        setInventory(updatedInventory);
         updateFirestoreInventory(updatedInventory);
     };
 
-    const handleAddMedicine = (e: React.FormEvent) => {
+    const handleAddMedicine = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedMedicineId || newMedicineQty <= 0) return;
+        
+        let targetMedicineId = selectedMedicineId;
+
+        // 1. If custom, create the medicine globally first
+        if (isCustomMedicine) {
+            if (!customName) return;
+            const newMedId = `custom-${Date.now()}`;
+            targetMedicineId = newMedId;
+
+            const newGlobalMed = {
+                id: newMedId,
+                name: customName,
+                genericName: customGeneric || 'N/A',
+                category: customCategory,
+                description: 'Added by partner',
+                price: newMedicinePrice,
+                requiresPrescription: false
+            };
+
+            try {
+                await saveGlobalMedicine(newGlobalMed);
+            } catch (err) {
+                alert("Failed to create global medicine entry.");
+                return;
+            }
+        }
+
+        if (!targetMedicineId || newMedicineQty < 0) return;
 
         const newItem = {
-            medicineId: selectedMedicineId,
+            medicineId: targetMedicineId,
             quantity: newMedicineQty,
             lastUpdated: new Date().toISOString(),
             expiryDate: newMedicineExpiry ? new Date(newMedicineExpiry).toISOString() : undefined,
-            price: newMedicinePrice || MEDICINES.find(m => m.id === selectedMedicineId)?.price,
+            price: newMedicinePrice || MEDICINES.find(m => m.id === targetMedicineId)?.price,
             restockTime: newMedicineRestock || 'N/A'
         };
 
-        const updatedInventory = [newItem, ...inventory];
-        setInventory(updatedInventory);
-        updateFirestoreInventory(updatedInventory);
+        // Check if already in inventory
+        const existingIdx = inventory.findIndex(i => i.medicineId === targetMedicineId);
+        let updatedInventory;
+        if (existingIdx !== -1) {
+            updatedInventory = [...inventory];
+            updatedInventory[existingIdx] = { ...updatedInventory[existingIdx], ...newItem };
+        } else {
+            updatedInventory = [newItem, ...inventory];
+        }
+
+        await updateFirestoreInventory(updatedInventory);
 
         setIsAddModalOpen(false);
+        setIsCustomMedicine(false);
         setSelectedMedicineId('');
+        setCustomName('');
+        setCustomGeneric('');
         setNewMedicineQty(10);
         setNewMedicineExpiry('');
         setNewMedicinePrice(0);
@@ -249,50 +292,69 @@ export const PartnershipDashboard = () => {
     return (
         <div className="min-h-screen bg-slate-50 -my-4 -mx-4 pb-20">
             {/* Top Bar */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900">Partner Hub</h1>
-                    <p className="text-xs text-slate-500">{pharmacy.name} • {pharmacy.address}</p>
+            <div className="bg-white/80 backdrop-blur-xl border-b border-slate-100 sticky top-0 z-30 px-8 py-5 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-teal-400 shadow-xl shadow-slate-200">
+                        <Store size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-slate-900 tracking-tight">{pharmacy.name}</h1>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                           <MapPin size={10} /> {pharmacy.address}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                     <button
                         onClick={handleExportForPowerBI}
-                        className="flex-1 bg-indigo-600 text-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                        className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl flex items-center gap-2 hover:bg-slate-100 transition-all border border-slate-200 text-xs font-bold"
                     >
-                        <Database size={24} />
-                        <span className="text-sm font-bold">Export for Power BI</span>
+                        <FileDown size={16} /> Export
                     </button>
                     <button
-                        onClick={async () => {
-                            if (window.confirm("Seed demo data? This will add initial medicines and pharmacies to your database.")) {
-                                await seedDatabase();
-                                window.location.reload();
-                            }
-                        }}
-                        className="flex-1 bg-teal-600 text-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-teal-700 transition-all shadow-lg shadow-teal-100"
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="bg-slate-900 text-white px-6 py-2.5 rounded-2xl flex items-center gap-2 hover:bg-teal-600 transition-all shadow-xl shadow-slate-200 text-xs font-black uppercase tracking-wider"
                     >
-                        <Plus size={24} />
-                        <span className="text-sm font-bold">Seed Demo Data</span>
+                        <Plus size={18} /> Update Stock
                     </button>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-8">
+            <div className="max-w-7xl mx-auto px-8 py-10 flex flex-col md:flex-row gap-10">
                 {/* Sidebar Navigation */}
-                <aside className="md:w-64 space-y-2">
-                    {navItems.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveTab(item.id as TabType)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === item.id
-                                ? 'bg-teal-600 text-white shadow-lg shadow-teal-200'
-                                : 'text-slate-600 hover:bg-white hover:text-teal-600 hover:shadow-sm'
-                                }`}
-                        >
-                            <item.icon size={18} />
-                            {item.label}
-                        </button>
-                    ))}
+                <aside className="md:w-72 space-y-3">
+                    <div className="bg-white p-2 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-1">
+                        {navItems.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id as TabType)}
+                                className={`flex items-center gap-4 px-6 py-4 rounded-2xl text-[13px] font-bold transition-all relative group ${activeTab === item.id
+                                    ? 'bg-slate-900 text-white shadow-2xl shadow-slate-300'
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                    }`}
+                            >
+                                <item.icon size={20} className={activeTab === item.id ? 'text-teal-400' : 'text-slate-400 group-hover:text-slate-600'} />
+                                {item.label}
+                                {activeTab === item.id && (
+                                    <div className="absolute right-4 w-1.5 h-1.5 bg-teal-400 rounded-full"></div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Pro Insight Card */}
+                    <div className="bg-teal-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl shadow-teal-100 group cursor-pointer hover:-translate-y-1 transition-all">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-all"></div>
+                        <h4 className="text-sm font-black mb-1 flex items-center gap-2">
+                           <Zap size={16} /> Smart Insights
+                        </h4>
+                        <p className="text-[11px] text-teal-50 font-medium leading-relaxed mb-4">
+                            Dolo 650 is trending in your area. Consider restock.
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-teal-200 group-hover:text-white transition-colors">
+                            View Report <ArrowUpRight size={12} />
+                        </div>
+                    </div>
                 </aside>
 
                 {/* Main Content Area */}
@@ -315,84 +377,149 @@ export const PartnershipDashboard = () => {
 
             {/* Add Medicine Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-900">Add Stock</h3>
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-10 shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16"></div>
+                        
+                        <div className="flex justify-between items-center mb-8 relative z-10">
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Manage Stock</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Pharmacy Inventory Update</p>
+                            </div>
+                            <button onClick={() => setIsAddModalOpen(false)} className="p-2 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all">
                                 <Plus className="rotate-45" size={24} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleAddMedicine} className="space-y-5">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Medicine</label>
-                                <select
-                                    value={selectedMedicineId}
-                                    onChange={(e) => setSelectedMedicineId(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
-                                    required
+                        <form onSubmit={handleAddMedicine} className="space-y-6 relative z-10">
+                            {/* Toggle for New Medicine */}
+                            <div className="flex p-1 bg-slate-100 rounded-2xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCustomMedicine(false)}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${!isCustomMedicine ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}
                                 >
-                                    <option value="">-- Choose Medicine --</option>
-                                    {MEDICINES.filter(m => !inventory.some(i => i.medicineId === m.id)).map(med => (
-                                        <option key={med.id} value={med.id}>
-                                            {med.name} ({med.genericName})
-                                        </option>
-                                    ))}
-                                </select>
+                                    Select from List
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCustomMedicine(true)}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${isCustomMedicine ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}
+                                >
+                                    Add New Medicine
+                                </button>
                             </div>
+
+                            {!isCustomMedicine ? (
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Select Medicine</label>
+                                    <select
+                                        value={selectedMedicineId}
+                                        onChange={(e) => setSelectedMedicineId(e.target.value)}
+                                        className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
+                                        required
+                                    >
+                                        <option value="">-- Choose from Database --</option>
+                                        {MEDICINES.map(med => (
+                                            <option key={med.id} value={med.id}>
+                                                {med.name} ({med.genericName})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Medicine Name</label>
+                                        <input
+                                            type="text"
+                                            value={customName}
+                                            onChange={(e) => setCustomName(e.target.value)}
+                                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
+                                            placeholder="e.g. AI-Cure 500"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Generic Name</label>
+                                            <input
+                                                type="text"
+                                                value={customGeneric}
+                                                onChange={(e) => setCustomGeneric(e.target.value)}
+                                                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
+                                                placeholder="e.g. Paracetamol"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Category</label>
+                                            <select
+                                                value={customCategory}
+                                                onChange={(e) => setCustomCategory(e.target.value)}
+                                                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
+                                            >
+                                                <option>General</option>
+                                                <option>Critical Care</option>
+                                                <option>Diabetes</option>
+                                                <option>Heart Care Care</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cost (₹)</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Market Price (₹)</label>
                                     <input
                                         type="number"
                                         value={newMedicinePrice}
                                         onChange={(e) => setNewMedicinePrice(parseFloat(e.target.value))}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
-                                        placeholder="e.g. 45"
+                                        className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
+                                        placeholder="Enter price"
+                                        required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Restock Time</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Restock Lead Time</label>
                                     <input
                                         type="text"
                                         value={newMedicineRestock}
                                         onChange={(e) => setNewMedicineRestock(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
-                                        placeholder="e.g. 2 days"
+                                        className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
+                                        placeholder="e.g. 24 hours"
                                     />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quantity</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Current Stock</label>
                                     <input
                                         type="number"
-                                        min="1"
+                                        min="0"
                                         value={newMedicineQty}
                                         onChange={(e) => setNewMedicineQty(parseInt(e.target.value))}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
+                                        className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Expiry</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Expiry Date</label>
                                     <input
                                         type="date"
                                         value={newMedicineExpiry}
                                         onChange={(e) => setNewMedicineExpiry(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
+                                        className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold"
                                     />
                                 </div>
                             </div>
 
                             <button
                                 type="submit"
-                                className="w-full py-4 bg-teal-600 text-white rounded-2xl hover:bg-teal-700 font-bold shadow-lg shadow-teal-100 transition-all flex items-center justify-center gap-2"
+                                className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] hover:bg-teal-600 font-black shadow-xl shadow-slate-200 transition-all flex items-center justify-center gap-2 group"
                             >
-                                <Plus size={20} /> Add to Inventory
+                                <Plus size={20} className="group-hover:rotate-90 transition-all" /> Update Dashboard
                             </button>
                         </form>
                     </div>

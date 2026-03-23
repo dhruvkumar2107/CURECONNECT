@@ -142,3 +142,18 @@ export const saveExternalResults = async (results: SearchResult[]) => {
         console.error("❌ [Sync] FAILED to save data:", error);
     }
 };
+
+// Save a new medicine globally
+export const saveGlobalMedicine = async (medicine: Medicine) => {
+    try {
+        const { db } = await import('./firebase');
+        const { doc, setDoc } = await import('firebase/firestore');
+        const docRef = doc(db, 'medicines', medicine.id);
+        await setDoc(docRef, medicine, { merge: true });
+        console.log(`✅ Global medicine saved: ${medicine.name}`);
+    } catch (error) {
+        console.error("Error saving global medicine:", error);
+        throw error;
+    }
+};
+
