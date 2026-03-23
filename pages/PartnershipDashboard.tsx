@@ -61,6 +61,18 @@ export const PartnershipDashboard = () => {
     const [newMedicineExpiry, setNewMedicineExpiry] = useState('');
     const [newMedicinePrice, setNewMedicinePrice] = useState(0);
     const [newMedicineRestock, setNewMedicineRestock] = useState('');
+    const [appMedicines, setAppMedicines] = useState<any[]>([]);
+    const [customDescription, setCustomDescription] = useState('');
+    const [customRequiresPrescription, setCustomRequiresPrescription] = useState(false);
+
+    // Sync global medicines
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'medicines'), (snapshot) => {
+            const meds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setAppMedicines(meds);
+        });
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         if (!isLoadingAuth) {
@@ -131,9 +143,9 @@ export const PartnershipDashboard = () => {
                 name: customName,
                 genericName: customGeneric || 'N/A',
                 category: customCategory,
-                description: 'Added by partner',
+                description: customDescription || 'Added by partner',
                 price: newMedicinePrice,
-                requiresPrescription: false
+                requiresPrescription: customRequiresPrescription
             };
 
             try {
@@ -145,6 +157,40 @@ export const PartnershipDashboard = () => {
         }
 
         if (!targetMedicineId || newMedicineQty < 0) return;
+
+        const newItem = {
+            medicineId: targetMedicineId,
+            quantity: newMedicineQty,
+            lastUpdated: new Date().toISOString(),
+            expiryDate: newMedicineExpiry ? new Date(newMedicineExpiry).toISOString() : undefined,
+            price: newMedicinePrice || appMedicines.find(m => m.id === targetMedicineId)?.price || MEDICINES.find(m => m.id === targetMedicineId)?.price,
+            restockTime: newMedicineRestock || 'N/A'
+        };
+
+        // Check if already in inventory
+        const existingIdx = inventory.findIndex(i => i.medicineId === targetMedicineId);
+        let updatedInventory;
+        if (existingIdx !== -1) {
+            updatedInventory = [...inventory];
+            updatedInventory[existingIdx] = { ...updatedInventory[existingIdx], ...newItem };
+        } else {
+            updatedInventory = [newItem, ...inventory];
+        }
+
+        await updateFirestoreInventory(updatedInventory);
+
+        setIsAddModalOpen(false);
+        setIsCustomMedicine(false);
+        setSelectedMedicineId('');
+        setCustomName('');
+        setCustomGeneric('');
+        setCustomDescription('');
+        setCustomRequiresPrescription(false);
+        setNewMedicineQty(10);
+        setNewMedicineExpiry('');
+        setNewMedicinePrice(0);
+        setNewMedicineRestock('');
+    };
 
         const newItem = {
             medicineId: targetMedicineId,
@@ -172,6 +218,8 @@ export const PartnershipDashboard = () => {
         setSelectedMedicineId('');
         setCustomName('');
         setCustomGeneric('');
+        setCustomDescription('');
+        setCustomRequiresPrescription(false);
         setNewMedicineQty(10);
         setNewMedicineExpiry('');
         setNewMedicinePrice(0);
@@ -381,7 +429,7 @@ export const PartnershipDashboard = () => {
                         onClick={() => setIsAddModalOpen(true)}
                         className="bg-slate-900 text-white px-6 py-2.5 rounded-2xl flex items-center gap-2 hover:bg-teal-600 transition-all shadow-xl shadow-slate-200 text-xs font-black uppercase tracking-wider"
                     >
-                        <Plus size={18} /> Update Stock
+                        <Plus size={18} /> Add Stock / Medicine
                     </button>
                 </div>
             </div>
@@ -425,11 +473,17 @@ export const PartnershipDashboard = () => {
 
                 {/* Main Content Area */}
                 <main className="flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {activeTab === 'overview' && <OverviewSection inventory={inventory} />}
+                    {activeTab === 'overview' && (
+                        <OverviewSection 
+                            inventory={inventory} 
+                            MEDICINES={appMedicines} 
+                            onOpenAddModal={() => setIsAddModalOpen(true)}
+                        />
+                    )}
                     {activeTab === 'inventory' && (
                         <InventorySection
                             inventory={inventory}
-                            MEDICINES={MEDICINES}
+                            MEDICINES={appMedicines}
                             onUpdateStock={handleUpdateStock}
                             onOpenAddModal={() => setIsAddModalOpen(true)}
                             onCSVUpload={handleCSVUpload}
@@ -486,7 +540,7 @@ export const PartnershipDashboard = () => {
                                         required
                                     >
                                         <option value="">-- Choose from Database --</option>
-                                        {MEDICINES.map(med => (
+                                        {appMedicines.map(med => (
                                             <option key={med.id} value={med.id}>
                                                 {med.name} ({med.genericName})
                                             </option>
@@ -527,9 +581,31 @@ export const PartnershipDashboard = () => {
                                                 <option>General</option>
                                                 <option>Critical Care</option>
                                                 <option>Diabetes</option>
-                                                <option>Heart Care Care</option>
+                                                <option>Heart Care</option>
+                                                <option>Antibiotics</option>
                                             </select>
                                         </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Short Description</label>
+                                        <textarea
+                                            value={customDescription}
+                                            onChange={(e) => setCustomDescription(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-bold resize-none h-20"
+                                            placeholder="Usage and indications..."
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-100/50">
+                                        <input
+                                            type="checkbox"
+                                            id="rx"
+                                            checked={customRequiresPrescription}
+                                            onChange={(e) => setCustomRequiresPrescription(e.target.checked)}
+                                            className="w-5 h-5 accent-teal-600 rounded"
+                                        />
+                                        <label htmlFor="rx" className="text-xs font-bold text-slate-700 cursor-pointer">
+                                            Requires Prescription (Rx)
+                                        </label>
                                     </div>
                                 </div>
                             )}
