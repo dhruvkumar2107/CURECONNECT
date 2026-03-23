@@ -1,169 +1,158 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, HeartPulse, UserCircle, LogOut, FileText, AlertTriangle, Store, Star, Clock, Video, Menu, X } from 'lucide-react';
+import { ShoppingCart, HeartPulse, UserCircle, LogOut, FileText, AlertTriangle, Store, Star, Clock, Video, Menu, X, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { seedDatabase } from '../services/seed';
 
 export const Header = () => {
   const { cart, user, logout } = useApp();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-slate-200">
-      <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="bg-teal-600 p-1.5 rounded-lg">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <Link to="/" className="flex items-center gap-2.5 group transition-all">
+            <div className="bg-gradient-to-br from-teal-500 to-teal-700 p-2 rounded-2xl shadow-lg shadow-teal-100 group-hover:scale-105 transition-transform">
               <HeartPulse className="text-white" size={24} />
             </div>
-            <span className="font-bold text-xl text-slate-800 tracking-tight">CureConnect</span>
+            <div className="flex flex-col">
+              <span className="font-black text-xl text-slate-900 tracking-tight leading-none">CureConnect</span>
+              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mt-0.5">Health Platform</span>
+            </div>
           </Link>
 
-          <Link id="sos-button" to="/emergency" className="hidden sm:flex bg-red-100 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold items-center gap-1 animate-pulse hover:bg-red-200 transition-colors">
+          {/* Conditional SOS Button */}
+          <Link id="sos-button" to="/emergency" className="hidden lg:flex bg-red-50 text-red-600 px-4 py-2 rounded-2xl text-[11px] font-black items-center gap-2 border border-red-100 uppercase tracking-wider hover:bg-red-100 transition-all animate-pulse">
             <AlertTriangle size={14} /> SOS
           </Link>
-
-          {/* Dev Tool: Seed DB */}
-          <button
-            onClick={seedDatabase}
-            className="hidden md:block text-[10px] bg-slate-100 text-slate-400 px-2 py-1 rounded hover:bg-slate-200"
-            title="Seed Database (Dev Only)"
-          >
-            Seed DB
-          </button>
         </div>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-4">
-          {user?.role === 'partner' ? (
-            <Link to="/partnership-dashboard" className="flex items-center gap-1 text-sm font-bold text-teal-600 hover:text-teal-700 transition-colors" title="Partner Hub">
-              <Store size={18} />
-              <span className="hidden lg:block">Partner Hub</span>
-            </Link>
-          ) : (
-            <Link to="/partner-login" className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-teal-600 transition-colors" title="Become a Partner">
-              <Store size={18} />
-              <span className="hidden lg:block">For Pharmacies</span>
-            </Link>
-          )}
+        <nav className="hidden md:flex items-center gap-1">
+          {/* Main Links */}
+          <div className="flex items-center gap-1 px-4 border-r border-slate-100 mr-4">
+             <NavLink to="/upload-prescription" icon={<FileText size={18} />} label="Upload Rx" id="upload-rx-link" />
+             <NavLink to="/teleconsult" icon={<Video size={18} />} label="Consult" id="teleconsult-link" />
+             <NavLink to="/reminders" icon={<Clock size={18} />} label="Reminders" />
+          </div>
 
-          <Link to="/reminders" className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors" title="Reminders">
-            <Clock size={18} />
-          </Link>
-
-          <Link id="teleconsult-link" to="/teleconsult" className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors" title="Teleconsultation">
-            <Video size={18} />
-          </Link>
-
-          <Link id="upload-rx-link" to="/upload-prescription" className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors">
-            <FileText size={18} />
-            <span>Upload Rx</span>
-          </Link>
-          <Link id="cart-link" to="/cart" className="relative p-2 text-slate-600 hover:text-teal-600 transition-colors">
-            <ShoppingCart size={24} />
-            {cartCount > 0 && (
-              <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
-                {cartCount}
-              </span>
+          <div className="flex items-center gap-4">
+            {/* Conditional Partner Hub/Login */}
+            {!user ? (
+               <Link to="/partner-login" className="flex items-center gap-2 text-[11px] font-black text-slate-400 hover:text-teal-600 transition-all uppercase tracking-widest px-3 py-2 rounded-xl border border-transparent hover:bg-teal-50">
+                 <Store size={18} />
+                 <span>For Pharmacies</span>
+               </Link>
+            ) : user.role === 'partner' && (
+               <Link to="/partnership-dashboard" className="flex items-center gap-2 text-[11px] font-black text-teal-600 bg-teal-50 px-4 py-2 rounded-2xl border border-teal-100 transition-all uppercase tracking-widest shadow-sm hover:shadow-md">
+                 <Store size={18} />
+                 <span>Partner Hub</span>
+               </Link>
             )}
-          </Link>
 
-          {user ? (
-            <div className="flex items-center gap-3 text-sm font-medium text-slate-700">
-              {/* Points Badge */}
-              <div id="points-badge" className="hidden sm:flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-bold">
-                <Star size={12} className="fill-amber-800" />
-                {user.points} pts
-              </div>
-
-              <div className="flex items-center gap-2">
-                <UserCircle size={24} className="text-teal-600" />
-                <span className="hidden sm:block">{user.name}</span>
-              </div>
-              <button
-                onClick={logout}
-                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                title="Sign Out"
-              >
-                <LogOut size={18} />
-              </button>
-            </div>
-          ) : (
-            <Link
-              to="/login"
-              className="text-sm font-medium text-teal-600 hover:text-teal-700"
-            >
-              Sign In
+            <Link id="cart-link" to="/cart" className="relative p-2.5 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-2xl transition-all group">
+              <ShoppingCart size={22} className="group-hover:scale-110 transition-transform" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-slate-900 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
+                  {cartCount}
+                </span>
+              )}
             </Link>
-          )}
+
+            {user ? (
+              <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
+                {/* Points Badge */}
+                <div id="points-badge" className="hidden lg:flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-2xl text-[11px] font-black border border-amber-100 uppercase tracking-wider">
+                  <Star size={14} className="fill-amber-500 text-amber-500" />
+                  {user.points} <span className="text-[10px] text-amber-600/60 ml-0.5">pts</span>
+                </div>
+
+                <div className="flex items-center gap-3 bg-slate-50 p-1.5 pr-4 rounded-2xl border border-slate-100 hover:bg-slate-100 transition-colors cursor-pointer group">
+                  <div className="w-9 h-9 bg-teal-600 text-white flex items-center justify-center rounded-xl font-black shadow-lg shadow-teal-100 group-hover:scale-105 transition-transform">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-[12px] font-black text-slate-900 leading-none">{user.name}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{user.role}</span>
+                  </div>
+                  <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+                </div>
+
+                <button
+                  onClick={logout}
+                  className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                  title="Sign Out"
+                >
+                  <LogOut size={20} />
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-teal-600 hover:shadow-xl hover:shadow-teal-100 transition-all active:scale-95"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
         </nav>
 
         {/* Mobile Menu Button */}
-        <div className="md:hidden flex items-center gap-2">
-          <Link to="/cart" className="relative p-2 text-slate-600 hover:text-teal-600 transition-colors">
+        <div className="md:hidden flex items-center gap-3">
+          <Link to="/cart" className="relative p-2 text-slate-600">
             <ShoppingCart size={24} />
             {cartCount > 0 && (
-              <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
+              <span className="absolute -top-1 -right-1 bg-slate-900 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
                 {cartCount}
               </span>
             )}
           </Link>
-          <button onClick={toggleMenu} className="p-2 text-slate-600">
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2.5 bg-slate-50 text-slate-900 rounded-2xl border border-slate-100">
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white border-t border-slate-100 p-4 shadow-lg animate-in slide-in-from-top-2">
-          <div className="flex flex-col gap-4">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-2xl animate-in slide-in-from-top-2 duration-300">
+          <div className="p-6 flex flex-col gap-3 font-bold text-[13px]">
             {user && (
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <UserCircle size={20} className="text-teal-600" />
-                <span className="font-medium text-slate-800">{user.name}</span>
-                <span className="ml-auto bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
-                  <Star size={10} className="fill-amber-800" /> {user.points}
-                </span>
+              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
+                <div className="w-12 h-12 bg-teal-600 text-white flex items-center justify-center rounded-2xl font-black text-xl shadow-lg shadow-teal-100">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-slate-900 font-black text-lg leading-none">{user.name}</span>
+                  <span className="text-amber-600 flex items-center gap-1 text-[11px] font-black uppercase tracking-widest mt-1">
+                    <Star size={12} className="fill-amber-500 text-amber-500" /> {user.points} Points
+                  </span>
+                </div>
               </div>
             )}
 
-            <Link to="/upload-prescription" onClick={toggleMenu} className="flex items-center gap-3 text-slate-600 hover:text-teal-600 p-2 rounded-lg hover:bg-slate-50">
-              <FileText size={20} /> Upload Prescription
-            </Link>
-            <Link to="/reminders" onClick={toggleMenu} className="flex items-center gap-3 text-slate-600 hover:text-teal-600 p-2 rounded-lg hover:bg-slate-50">
-              <Clock size={20} /> Reminders
-            </Link>
-            <Link to="/teleconsult" onClick={toggleMenu} className="flex items-center gap-3 text-slate-600 hover:text-teal-600 p-2 rounded-lg hover:bg-slate-50">
-              <Video size={20} /> Teleconsultation
-            </Link>
+            <MobileNavLink to="/upload-prescription" icon={<FileText size={18} />} label="Upload Prescription" onClick={() => setIsMenuOpen(false)} />
+            <MobileNavLink to="/teleconsult" icon={<Video size={18} />} label="Teleconsultation" onClick={() => setIsMenuOpen(false)} />
+            <MobileNavLink to="/reminders" icon={<Clock size={18} />} label="Medicine Reminders" onClick={() => setIsMenuOpen(false)} />
+            
             {user?.role === 'partner' ? (
-              <Link to="/partnership-dashboard" onClick={toggleMenu} className="flex items-center gap-3 text-teal-600 font-bold p-2 rounded-lg bg-teal-50">
-                <Store size={20} /> Partner Hub
-              </Link>
-            ) : (
-              <Link to="/partner-login" onClick={toggleMenu} className="flex items-center gap-3 text-slate-600 hover:text-teal-600 p-2 rounded-lg hover:bg-slate-50">
-                <Store size={20} /> For Pharmacies
-              </Link>
+              <MobileNavLink to="/partnership-dashboard" icon={<Store size={18} />} label="Partner Dashboard" onClick={() => setIsMenuOpen(false)} highlight />
+            ) : !user && (
+              <MobileNavLink to="/partner-login" icon={<Store size={18} />} label="For Pharmacies" onClick={() => setIsMenuOpen(false)} />
             )}
-            <Link to="/emergency" onClick={toggleMenu} className="flex items-center gap-3 text-red-600 bg-red-50 p-2 rounded-lg">
+
+            <Link to="/emergency" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center gap-3 text-white bg-red-600 p-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-red-100">
               <AlertTriangle size={20} /> Emergency SOS
             </Link>
 
-            <button onClick={seedDatabase} className="flex items-center gap-3 text-slate-400 p-2 rounded-lg hover:bg-slate-50 text-sm">
-              Seed Database (Dev)
-            </button>
-
             {user ? (
-              <button onClick={() => { logout(); toggleMenu(); }} className="flex items-center gap-3 text-red-500 p-2 rounded-lg hover:bg-red-50">
+              <button onClick={() => { logout(); setIsMenuOpen(false); }} className="flex items-center justify-center gap-3 text-red-500 p-4 rounded-2xl hover:bg-red-50 transition-colors border border-red-100 mt-2">
                 <LogOut size={20} /> Sign Out
               </button>
             ) : (
-              <Link to="/login" onClick={toggleMenu} className="bg-teal-600 text-white text-center py-2 rounded-lg font-medium">
-                Sign In
+              <Link to="/login" onClick={() => setIsMenuOpen(false)} className="bg-slate-900 text-white text-center py-5 rounded-[2rem] font-black uppercase tracking-widest text-sm shadow-xl shadow-slate-200 mt-2">
+                Sign In to CureConnect
               </Link>
             )}
           </div>
@@ -172,3 +161,29 @@ export const Header = () => {
     </header>
   );
 };
+
+const NavLink = ({ to, icon, label, id }: any) => (
+  <Link 
+    id={id} 
+    to={to} 
+    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[13px] font-black text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all whitespace-nowrap"
+  >
+    {React.cloneElement(icon, { size: 18, className: "text-slate-400 group-hover:text-teal-600 transition-colors" })}
+    {label}
+  </Link>
+);
+
+const MobileNavLink = ({ to, icon, label, onClick, highlight }: any) => (
+  <Link 
+    to={to} 
+    onClick={onClick} 
+    className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${
+      highlight ? 'bg-teal-50 text-teal-700 border border-teal-100' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-50'
+    }`}
+  >
+    <div className={`p-2 rounded-xl ${highlight ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+        {icon}
+    </div>
+    <span className="font-black text-sm uppercase tracking-wider">{label}</span>
+  </Link>
+);
