@@ -8,8 +8,12 @@ export const searchMedicinesFromMyUpchar = async (query: string): Promise<Search
     if (!query || query.length < 3) return [];
 
     try {
+        console.log(`📡 [API] Searching myUpchar for: "${query}"...`);
         const response = await fetch(`https://beta.myupchar.com/api/medicine/search?api_key=${MYUPCHAR_API_KEY}&name=${encodeURIComponent(query)}`);
+        
+        console.log(`📡 [API] Response Status: ${response.status}`);
         const data = await response.json();
+        console.log("📡 [API] Full Data:", data);
 
         if (data.status === 'OK' && data.data) {
             return data.data.map((item: any) => ({
