@@ -591,6 +591,14 @@ export const PartnershipDashboard = () => {
                     </div>
                 </div>
             )}
+
+            <BulkUploadModal 
+                isOpen={isBulkModalOpen} 
+                onClose={() => setIsBulkModalOpen(false)}
+                bulkData={bulkData}
+                setBulkData={setBulkData}
+                handleBulkUpload={handleBulkUpload}
+            />
         </div>
     );
 };
