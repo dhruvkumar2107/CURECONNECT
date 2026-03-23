@@ -29,9 +29,9 @@ let auth;
 let analytics;
 
 try {
-  console.log("firebase.ts: Initializing app...");
+  console.log("firebase.ts: Initializing app for project:", firebaseConfig.projectId);
   app = initializeApp(firebaseConfig);
-  console.log("firebase.ts: App initialized", app);
+  console.log("firebase.ts: App initialized");
 
   analytics = getAnalytics(app);
 

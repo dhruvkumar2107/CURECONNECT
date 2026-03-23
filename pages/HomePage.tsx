@@ -142,27 +142,7 @@ export const HomePage = () => {
         </div>
       )}
 
-      <div className="mt-16 flex flex-col items-center gap-4">
-        <button 
-          onClick={async () => {
-            const { db } = await import('../services/firebase');
-            const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-            try {
-              alert("Testing Connection... (Check your console)");
-              await setDoc(doc(db, 'connection_test', 'test_doc'), {
-                lastTest: serverTimestamp(),
-                message: "This is a test write to verify Firestore connectivity."
-              });
-              alert("✅ SUCCESS! Your connection is working. Check the 'connection_test' collection in your Firebase console.");
-            } catch (error: any) {
-              console.error("Connection Test Error:", error);
-              alert("❌ FAILED! Error: " + (error.message || "Unknown error"));
-            }
-          }}
-          className="bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-xs font-medium hover:bg-slate-300 transition-colors"
-        >
-          Developer: Test Database Connection
-        </button>
+      <div className="mt-16">
         <FeedbackSection />
       </div>
     </div>
