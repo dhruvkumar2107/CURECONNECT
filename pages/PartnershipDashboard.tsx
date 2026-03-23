@@ -77,8 +77,8 @@ export const PartnershipDashboard = () => {
                 return () => clearTimeout(checkRole);
             } else {
                 // Real-time listener for pharmacy document
-                console.log(`🔗 [Dashboard] Subscribing to Pharmacy: ${user.uid}`);
-                const unsub = onSnapshot(doc(db, 'pharmacies', user.uid), (docSnap) => {
+                console.log(`🔗 [Dashboard] Subscribing to Pharmacy: ${user.id}`);
+                const unsub = onSnapshot(doc(db, 'pharmacies', user.id), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         setPharmacy(data);
@@ -98,7 +98,7 @@ export const PartnershipDashboard = () => {
     const updateFirestoreInventory = async (newInventory: any[]) => {
         if (!user) return;
         try {
-            const docRef = doc(db, 'pharmacies', user.uid);
+            const docRef = doc(db, 'pharmacies', user.id);
             await updateDoc(docRef, {
                 inventory: newInventory
             });
