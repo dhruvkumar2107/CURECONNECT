@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -45,6 +45,27 @@ try {
 }
 
 export { db, auth };
+
+/**
+ * Submits user feedback to Firestore
+ */
+export const addFeedback = async (rating: number, comment: string) => {
+  if (!db) throw new Error("Firestore not initialized");
+
+  try {
+    const feedbackRef = collection(db, "feedback");
+    await addDoc(feedbackRef, {
+      rating,
+      comment,
+      timestamp: serverTimestamp(),
+      userAgent: navigator.userAgent,
+    });
+    console.log("Feedback submitted successfully");
+  } catch (error) {
+    console.error("Error submitting feedback:", error);
+    throw error;
+  }
+};
 
 // Export Auth functions directly from the SDK
 export {

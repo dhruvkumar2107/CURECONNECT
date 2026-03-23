@@ -3,9 +3,10 @@ import { Search, MapPin, Filter, ArrowUpDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { SearchResult } from '../types';
 import { PharmacyCard } from '../components/PharmacyCard';
-import { searchMedicinesRealTime } from '../services/dbService';
+import { searchMedicinesRealTime, saveExternalResults } from '../services/dbService';
 import { getAlternativeMedicines, interpretSearchQuery } from '../services/geminiService';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
+import { FeedbackSection } from '../components/FeedbackSection';
 
 export const HomePage = () => {
   const { userLocation, locationError, isLoadingLocation, addToCart } = useApp();
@@ -37,6 +38,11 @@ export const HomePage = () => {
       const resultsArrays = await Promise.all(searchPromises);
       // 2b. Search myUpchar API
       const myUpcharResults = await searchMedicinesFromMyUpchar(query);
+      
+      // Sync external data to DB in background
+      if (myUpcharResults.length > 0) {
+        saveExternalResults(myUpcharResults);
+      }
 
       let allResults = [...resultsArrays.flat(), ...myUpcharResults];
 
@@ -181,6 +187,10 @@ export const HomePage = () => {
           <p>Search for a medicine to see real-time stock.</p>
         </div>
       )}
+
+      <div className="mt-16">
+        <FeedbackSection />
+      </div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { initPostHog } from './services/posthog';
 import { Header } from './components/Header';
 import { HomePage } from './pages/HomePage';
 import { CartPage } from './pages/CartPage';
@@ -17,6 +18,10 @@ import { AIChatbot } from './components/AIChatbot';
 import { TourGuide } from './components/TourGuide';
 
 const App = () => {
+  useEffect(() => {
+    initPostHog();
+  }, []);
+
   return (
     <AppProvider>
       <HashRouter>

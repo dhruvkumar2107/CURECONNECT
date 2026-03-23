@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
 import { Medicine, Pharmacy, SearchResult, Coordinate } from '../types';
 
 // Haversine formula to calculate distance in KM
@@ -99,4 +99,45 @@ export const subscribeToPharmacyInventory = (pharmacyId: string, callback: (inve
         }
     });
     return unsub;
+};
+
+/**
+ * Saves results from external API into Firestore collections
+ * This ensures the database grows as users search for new medicines
+ */
+export const saveExternalResults = async (results: SearchResult[]) => {
+    if (results.length === 0) return;
+
+    console.log(`Syncing ${results.length} results to Firestore...`);
+
+    try {
+        for (const result of results) {
+            const { medicine, pharmacy } = result;
+
+            // 1. Save Medicine (Deduplicated by ID)
+            const medicineRef = doc(db, 'medicines', medicine.id);
+            await setDoc(medicineRef, medicine, { merge: true });
+
+            // 2. Save Pharmacy (Deduplicated by ID)
+            const pharmacyRef = doc(db, 'pharmacies', pharmacy.id);
+            const pharmacySnap = await getDoc(pharmacyRef);
+
+            if (!pharmacySnap.exists()) {
+                // If it's a new pharmacy (like myupchar-online), save its basic info
+                await setDoc(pharmacyRef, pharmacy, { merge: true });
+            } else {
+                // If the pharmacy exists, we want to ensure this medicine is in its inventory
+                const existingPharmacy = pharmacySnap.data() as Pharmacy;
+                const hasMedicine = existingPharmacy.inventory.some(i => i.medicineId === medicine.id);
+
+                if (!hasMedicine) {
+                    const updatedInventory = [...existingPharmacy.inventory, result.stock];
+                    await setDoc(pharmacyRef, { inventory: updatedInventory }, { merge: true });
+                }
+            }
+        }
+        console.log("Sync complete!");
+    } catch (error) {
+        console.error("Error syncing external data:", error);
+    }
 };
