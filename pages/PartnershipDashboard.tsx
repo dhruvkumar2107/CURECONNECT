@@ -48,6 +48,8 @@ export const PartnershipDashboard = () => {
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [inventory, setInventory] = useState<any[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+    const [bulkData, setBulkData] = useState('');
     
     // Form State
     const [isCustomMedicine, setIsCustomMedicine] = useState(false);
@@ -65,8 +67,14 @@ export const PartnershipDashboard = () => {
             if (!user) {
                 navigate('/partner-login');
             } else if (user.role !== 'partner') {
-                alert("Access Denied. This area is for Pharmacy Partners only.");
-                navigate('/');
+                // Wait for role to sync (might be 'user' for a few ms after login/signup)
+                const checkRole = setTimeout(() => {
+                    if (user.role !== 'partner') {
+                        console.warn("⛔ [Auth] Role mismatch. Kicking to home.");
+                        navigate('/');
+                    }
+                }, 2000); 
+                return () => clearTimeout(checkRole);
             } else {
                 // Real-time listener for pharmacy document
                 console.log(`🔗 [Dashboard] Subscribing to Pharmacy: ${user.uid}`);
@@ -75,7 +83,6 @@ export const PartnershipDashboard = () => {
                         const data = docSnap.data();
                         setPharmacy(data);
                         setInventory(data.inventory || []);
-                        console.log("🔗 [Dashboard] Remote update received.");
                     } else {
                         console.error("No pharmacy found for this user.");
                     }
@@ -86,7 +93,7 @@ export const PartnershipDashboard = () => {
                 return () => unsub();
             }
         }
-    }, [user, isLoadingAuth, navigate]);
+    }, [user, isLoadingAuth, navigate, user?.role]);
 
     const updateFirestoreInventory = async (newInventory: any[]) => {
         if (!user) return;
@@ -169,6 +176,56 @@ export const PartnershipDashboard = () => {
         setNewMedicineExpiry('');
         setNewMedicinePrice(0);
         setNewMedicineRestock('');
+    };
+
+    const handleBulkUpload = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const lines = bulkData.split('\n').filter(l => l.trim().includes(','));
+            let newItemsCount = 0;
+            let currentInventory = [...inventory];
+
+            for (const line of lines) {
+                const [mName, mGeneric, mCategory, mPrice, mQty] = line.split(',').map(s => s.trim());
+                if (!mName) continue;
+
+                const medId = `bulk-${Date.now()}-${newItemsCount}`;
+                
+                // 1. Create global medicine
+                const newGlobalMed = {
+                    id: medId,
+                    name: mName,
+                    genericName: mGeneric || 'N/A',
+                    category: mCategory || 'General',
+                    description: 'Imported via Bulk Upload',
+                    price: parseFloat(mPrice) || 0,
+                    requiresPrescription: false
+                };
+                await saveGlobalMedicine(newGlobalMed);
+
+                // 2. Prepare inventory item
+                const invItem = {
+                    medicineId: medId,
+                    quantity: parseInt(mQty) || 10,
+                    lastUpdated: new Date().toISOString(),
+                    price: parseFloat(mPrice) || 0,
+                    restockTime: '24h'
+                };
+
+                currentInventory = [invItem, ...currentInventory];
+                newItemsCount++;
+            }
+
+            if (newItemsCount > 0) {
+                await updateFirestoreInventory(currentInventory);
+                alert(`Successfully imported ${newItemsCount} medicines!`);
+            }
+            setIsBulkModalOpen(false);
+            setBulkData('');
+        } catch (error) {
+            console.error(error);
+            alert("Bulk upload failed. Please check format.");
+        }
     };
 
     const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,6 +365,12 @@ export const PartnershipDashboard = () => {
                     </div>
                 </div>
                 <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsBulkModalOpen(true)}
+                        className="bg-teal-50 text-teal-700 px-5 py-2.5 rounded-2xl flex items-center gap-2 hover:bg-teal-100 transition-all border border-teal-100 text-xs font-black uppercase"
+                    >
+                        <FileUp size={16} /> Bulk Upload
+                    </button>
                     <button
                         onClick={handleExportForPowerBI}
                         className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl flex items-center gap-2 hover:bg-slate-100 transition-all border border-slate-200 text-xs font-bold"
@@ -955,3 +1018,57 @@ const SettingInput = ({ label, value, isArea }: any) => (
         )}
     </div>
 );
+
+export const BulkUploadModal = ({ isOpen, onClose, bulkData, setBulkData, handleBulkUpload }: any) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16"></div>
+                
+                <div className="flex justify-between items-center mb-8 relative z-10">
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Bulk Inventory Upload</h3>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paste your medicine data below</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all">
+                        <Plus className="rotate-45" size={24} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleBulkUpload} className="space-y-6 relative z-10">
+                    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Required Format (CSV style)</label>
+                        <div className="text-[11px] font-mono text-slate-500 bg-white p-4 rounded-xl border border-slate-100 mb-4">
+                            Medicine Name, Generic Name, Category, Price, Quantity
+                        </div>
+                        <textarea
+                            value={bulkData}
+                            onChange={(e) => setBulkData(e.target.value)}
+                            rows={8}
+                            placeholder="e.g. AI-Cure 500, Paracetamol, General, 45, 100&#10;Dolo 650, Paracetamol, General, 30, 50"
+                            className="w-full px-4 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-sm font-medium"
+                            required
+                        />
+                    </div>
+
+                    <div className="flex gap-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-[1.5rem] hover:bg-slate-200 font-bold transition-all"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-[2] py-5 bg-teal-600 text-white rounded-[1.5rem] hover:bg-teal-700 font-black shadow-xl shadow-teal-100 transition-all flex items-center justify-center gap-2 group"
+                        >
+                            <Upload size={20} className="group-hover:-translate-y-1 transition-all" /> Process Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};

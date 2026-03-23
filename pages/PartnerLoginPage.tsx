@@ -28,7 +28,7 @@ export const PartnerLoginPage = () => {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // Navigation handled by useEffect
+            console.log("✅ [Auth] Login success. Waiting for role sync...");
         } catch (err: any) {
             setError("Invalid email or password.");
             setLoading(false);
