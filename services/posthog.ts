@@ -10,8 +10,9 @@ export const initPostHog = () => {
             capture_pageview: true,
             persistence: 'localStorage',
             autocapture: true,
+            person_profiles: 'always',
         });
-        console.log('PostHog initialized');
+        console.log('PostHog initialized with person_profiles: always');
     } else {
         console.warn('PostHog key not found or is a placeholder. Analytics will be disabled.');
     }

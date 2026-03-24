@@ -6,6 +6,7 @@ import { PharmacyCard } from '../components/PharmacyCard';
 import { searchMedicinesSubscription, saveExternalResults } from '../services/dbService';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { FeedbackSection } from '../components/FeedbackSection';
+import posthog from '../services/posthog';
 
 export const HomePage = () => {
   const { userLocation, locationError, isLoadingLocation, addToCart } = useApp();
@@ -160,6 +161,11 @@ export const HomePage = () => {
             key={`${result.pharmacy.id}-${result.medicine.id}-${idx}`}
             data={result}
             onAddToCart={() => {
+              posthog.capture('add_to_cart', { 
+                medicine_name: result.medicine.name,
+                pharmacy_id: result.pharmacy.id,
+                price: result.medicine.price
+              });
               addToCart({
                 ...result.medicine,
                 quantity: 1,
