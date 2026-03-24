@@ -147,11 +147,43 @@ export const createOrder = async (order: Omit<Order, 'id'>) => {
     try {
         const orderId = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const orderRef = doc(db, 'orders', orderId);
-        await setDoc(orderRef, { ...order, id: orderId });
+        
+        // Ensure we're sending clean data (Firestore doesn't allow 'undefined')
+        const orderData = { ...order };
+        Object.keys(orderData).forEach(key => (orderData as any)[key] === undefined && delete (orderData as any)[key]);
+        
+        const cleanOrder = {
+            ...orderData,
+            id: orderId,
+            updatedAt: serverTimestamp()
+        };
+        
+        console.log(`📡 [Order] Attempting to create order ${orderId} for customer ${order.customerId}`);
+        await setDoc(orderRef, cleanOrder);
+        console.log(`✅ [Order] Success: ${orderId}`);
         return orderId;
+    } catch (error: any) {
+        console.error("❌ [Order] CRITICAL FAILURE:", error?.message || error);
+        // Rethrow with more context
+        throw new Error(`Order creation failed: ${error?.message || 'Unknown Firestore error'}`);
+    }
+};
+
+export const saveSearchQuery = async (query: string, userId?: string, resultsCount: number = 0) => {
+    if (!query || query.length < 2) return;
+    try {
+        const queryId = `q-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        const queryRef = doc(db, 'queries', queryId);
+        await setDoc(queryRef, {
+            query: query.toLowerCase(),
+            userId: userId || 'anonymous',
+            resultsCount,
+            timestamp: serverTimestamp(),
+            createdAt: new Date().toISOString()
+        });
+        console.log(`📝 [SearchLog] Logged query: "${query}"`);
     } catch (error) {
-        console.error("Error creating order:", error);
-        throw error;
+        console.error("Error logging query:", error);
     }
 };
 

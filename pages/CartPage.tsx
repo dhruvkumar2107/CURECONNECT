@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Trash2, ArrowRight, CheckCircle, Clock } from 'lucide-react';
+import { Trash2, ArrowRight, CheckCircle, Clock, ShoppingCart } from 'lucide-react';
 import { PHARMACIES } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { createOrder } from '../services/dbService';
@@ -50,9 +50,9 @@ export const CartPage = () => {
         setShowSchedule(false);
         alert("Order reserved successfully and recorded in database! Please pick up from the pharmacy within 24 hours.");
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Checkout failed:", error);
-      alert("Failed to create reservation in database. Please try again.");
+      alert(`Failed to create reservation: ${error.message || 'Database connection error'}. Please check your connection and try again.`);
     }
   };
 
