@@ -2,7 +2,8 @@ import React from 'react';
 import { SearchResult } from '../types';
 import { getStockStatus } from '../services/mockDatabase';
 import { StockStatus } from '../types';
-import { MapPin, Phone, ShoppingBag, AlertCircle, FileText, Flag, Globe } from 'lucide-react';
+import { MapPin, Phone, ShoppingBag, AlertCircle, FileText, Flag, Globe, Star } from 'lucide-react';
+import { analytics } from '../services/posthog';
 
 interface Props {
   data: SearchResult;
@@ -14,122 +15,179 @@ export const PharmacyCard: React.FC<Props> = ({ data, onAddToCart, onFindAlterna
   const { pharmacy, medicine, stock, distance } = data;
   const status = getStockStatus(stock.quantity);
 
-  const getStatusColor = (s: StockStatus) => {
-    switch (s) {
-      case StockStatus.IN_STOCK: return 'bg-green-100 text-green-800 border-green-200';
-      case StockStatus.LOW_STOCK: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case StockStatus.OUT_OF_STOCK: return 'bg-red-100 text-red-800 border-red-200';
-    }
+  const statusConfig = {
+    [StockStatus.IN_STOCK]: { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', color: '#34d399', dot: '#10b981', label: 'In Stock' },
+    [StockStatus.LOW_STOCK]: { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#fbbf24', dot: '#f59e0b', label: 'Low Stock' },
+    [StockStatus.OUT_OF_STOCK]: { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)', color: '#f87171', dot: '#ef4444', label: 'Out of Stock' },
+  };
+  const sc = statusConfig[status];
+
+  const handleReport = () => {
+    analytics.stockReported(medicine.name, pharmacy.name);
+    alert(`Report submitted for ${medicine.name} at ${pharmacy.name}. We'll verify this.`);
   };
 
-  const handleReportIssue = () => {
-    // In a real app, this would send a report to the backend
-    alert(`Report submitted: Stock info for ${medicine.name} at ${pharmacy.name} is incorrect. We will verify this.`);
+  const handlePhoneCall = () => {
+    analytics.pharmacyCalled(pharmacy.name, pharmacy.id, pharmacy.phone);
   };
 
   return (
-    <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/50 p-6 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 relative group border-b-4 border-b-transparent hover:border-b-teal-500/20 active:scale-[0.99]">
-      <div className="flex justify-between items-start mb-5">
-        <div className="max-w-[70%]">
-          <h3 className="font-black text-xl text-slate-900 tracking-tight leading-tight group-hover:text-teal-600 transition-colors uppercase">{pharmacy.name}</h3>
-          <div className="flex flex-wrap items-center gap-y-1 text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">
-            <div className="flex items-center bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-              <MapPin size={12} className="mr-1.5 text-teal-500" />
-              <span>{distance} km away</span>
+    <div className="group relative rounded-2xl overflow-hidden transition-all duration-300 card-hover"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,148,136,0.25)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)';
+      }}>
+
+      {/* Top accent bar based on stock status */}
+      <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${sc.dot}, transparent)` }} />
+
+      <div className="p-5">
+        {/* ── Header Row ── */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1 min-w-0 mr-3">
+            <h3 className="font-bold text-white text-base leading-tight truncate group-hover:text-teal-300 transition-colors">
+              {pharmacy.name}
+            </h3>
+            <div className="flex items-center flex-wrap gap-2 mt-1.5">
+              <span className="flex items-center gap-1 text-xs text-slate-500 font-medium">
+                <MapPin size={11} className="text-teal-600" />
+                {distance === 999 ? 'Online' : `${distance} km`}
+              </span>
+              <span className="text-slate-700">·</span>
+              <span className="flex items-center gap-1 text-xs font-medium"
+                style={{ color: pharmacy.type === 'Hub' ? '#2dd4bf' : '#94a3b8' }}>
+                <Globe size={11} />
+                {pharmacy.type}
+              </span>
+              {pharmacy.rating > 0 && (
+                <>
+                  <span className="text-slate-700">·</span>
+                  <span className="flex items-center gap-1 text-xs text-amber-400 font-medium">
+                    <Star size={11} className="fill-amber-400" />
+                    {pharmacy.rating}
+                  </span>
+                </>
+              )}
             </div>
-            <span className="mx-2 text-slate-200">|</span>
-            <div className="flex items-center bg-teal-50 text-teal-600 px-2 py-1 rounded-lg border border-teal-100/50">
-              <Globe size={12} className="mr-1.5" />
-              <span>{pharmacy.type}</span>
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            {/* Stock badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+              style={{ background: sc.bg, border: `1px solid ${sc.border}`, color: sc.color }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: sc.dot }} />
+              {sc.label}
+            </div>
+
+            {/* Live API badge */}
+            {data.isExternalApi && (
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                Live API
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Medicine Info ── */}
+        <div className="rounded-xl p-4 mb-4"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-black text-white text-lg leading-tight truncate">{medicine.name}</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">{medicine.genericName}</p>
+
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {medicine.requiresPrescription && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold"
+                    style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', color: '#fbbf24' }}>
+                    <FileText size={10} /> Rx Required
+                  </span>
+                )}
+                {medicine.isCritical && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold"
+                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+                    <AlertCircle size={10} /> Critical
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  {medicine.category}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xl font-black text-white leading-none">₹{medicine.price}</p>
+              <p className="text-[11px] text-slate-600 font-medium mt-1">
+                {stock.quantity > 900 ? 'In Stock' : `${stock.quantity} left`}
+              </p>
             </div>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${getStatusColor(status)}`}>
-            {status}
-          </div>
-          {data.isExternalApi && (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[9px] font-black border border-indigo-100/50 animate-pulse tracking-widest uppercase">
-              <Globe size={10} />
-              <span>Live API</span>
-            </div>
+
+        {/* ── Actions Row ── */}
+        <div className="flex gap-2">
+          {status !== StockStatus.OUT_OF_STOCK ? (
+            <button onClick={onAddToCart}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white transition-all duration-300 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #0d9488, #0f766e)', boxShadow: '0 0 20px rgba(13,148,136,0.2)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 30px rgba(13,148,136,0.4)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(13,148,136,0.2)'; }}>
+              <ShoppingBag size={15} /> Add to Cart
+            </button>
+          ) : (
+            <button onClick={onFindAlternative}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white transition-all duration-300 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #6366f1)' }}>
+              <AlertCircle size={15} /> Find Alternative
+            </button>
           )}
+
+          <a href={`tel:${pharmacy.phone}`} onClick={handlePhoneCall}
+            className="w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(13,148,136,0.12)';
+              (e.currentTarget as HTMLElement).style.color = '#2dd4bf';
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,148,136,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+              (e.currentTarget as HTMLElement).style.color = '#64748b';
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+            }}>
+            <Phone size={18} />
+          </a>
         </div>
-      </div>
 
-      <div className="bg-slate-50/50 backdrop-blur-sm p-5 rounded-2xl border border-slate-100/50 mb-6 group-hover:bg-white group-hover:border-teal-100/50 transition-all duration-500">
-        <div className="flex items-start justify-between">
-          <div className="max-w-[65%]">
-            <p className="font-black text-slate-900 text-lg leading-none uppercase tracking-tight">{medicine.name}</p>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">{medicine.genericName}</p>
-            
-            <div className="flex flex-wrap gap-2 mt-4">
-              {medicine.requiresPrescription && (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[9px] font-black border border-amber-100/50 uppercase tracking-widest">
-                  <FileText size={12} />
-                  <span>Rx Required</span>
-                </div>
-              )}
-              {medicine.isCritical && (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-[9px] font-black border border-rose-100/50 animate-pulse uppercase tracking-widest">
-                  <AlertCircle size={12} />
-                  <span>Critical</span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-black text-slate-900 tracking-tighter">₹{medicine.price}</p>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 opacity-60">
-              {stock.quantity} Units left
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        {status !== StockStatus.OUT_OF_STOCK ? (
-          <button
-            onClick={onAddToCart}
-            className="flex-1 bg-slate-900 hover:bg-teal-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl shadow-slate-200 hover:shadow-teal-100 active:scale-95"
-          >
-            <ShoppingBag size={18} /> Add to Cart
-          </button>
-        ) : (
-          <button
-            onClick={onFindAlternative}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-black text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl shadow-indigo-100 active:scale-95"
-          >
-            <AlertCircle size={18} /> Find Alternative
-          </button>
-        )}
-        <a 
-          href={`tel:${pharmacy.phone}`} 
-          className="w-14 h-14 flex items-center justify-center text-slate-400 border border-slate-100 rounded-xl hover:bg-slate-50 hover:text-teal-600 hover:border-teal-100 transition-all duration-300 active:scale-95"
-        >
-          <Phone size={22} />
-        </a>
-      </div>
-
-      <div className="flex justify-between items-center mt-5 px-1">
-        {stock.expiryDate && new Date(stock.expiryDate) < new Date(Date.now() + 7776000000) && (
-          <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50 flex items-center gap-1.5 animate-pulse">
-            <AlertCircle size={10} /> Expiring soon
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          {stock.expiryDate && new Date(stock.expiryDate) < new Date(Date.now() + 7776000000) && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
+              <AlertCircle size={10} /> Expiring soon
+            </span>
+          )}
+          <span className="ml-auto text-[10px] text-slate-600 font-medium">
+            Updated {new Date(stock.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
-        )}
-        <div className="flex-1"></div>
-        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
-          Updated {new Date(stock.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        </div>
       </div>
 
-      {/* Report Button */}
-      <button
-        onClick={handleReportIssue}
-        className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 p-2 text-slate-200 hover:text-rose-500 bg-white shadow-lg rounded-full"
-        title="Report Issue"
-      >
-        <Flag size={14} />
+      {/* Report button */}
+      <button onClick={handleReport}
+        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-lg text-slate-600 hover:text-rose-400"
+        style={{ background: 'rgba(255,255,255,0.05)' }}
+        title="Report incorrect info">
+        <Flag size={12} />
       </button>
     </div>
   );

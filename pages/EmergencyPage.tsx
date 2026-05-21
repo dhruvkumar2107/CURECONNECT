@@ -1,94 +1,113 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, MapPin, AlertTriangle, Navigation } from 'lucide-react';
+import { Phone, MapPin, AlertTriangle, Navigation, Siren, ShieldAlert, HeartPulse } from 'lucide-react';
 import { PHARMACIES } from '../constants';
 import { Pharmacy } from '../types';
+import { analytics } from '../services/posthog';
+
+const EMERGENCY_CONTACTS = [
+  { name: 'Ambulance', number: '108', color: '#ef4444' },
+  { name: 'Police', number: '100', color: '#3b82f6' },
+  { name: 'Fire Brigade', number: '101', color: '#f59e0b' },
+  { name: 'Disaster Mgmt', number: '108', color: '#8b5cf6' },
+];
 
 export const EmergencyPage = () => {
-    const [nearbyPharmacies, setNearbyPharmacies] = useState<Pharmacy[]>([]);
-    const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [nearbyPharmacies, setNearbyPharmacies] = useState<Pharmacy[]>([]);
 
-    useEffect(() => {
-        // Mock location for demo if not available
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setUserLocation({
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude
-                });
-            },
-            (err) => {
-                console.log("Using default location");
-                setUserLocation({ latitude: 12.9716, longitude: 77.6412 }); // Bangalore default
-            }
-        );
-    }, []);
+  useEffect(() => {
+    analytics.emergencyPageViewed();
+    setNearbyPharmacies(PHARMACIES.slice(0, 5));
+  }, []);
 
-    useEffect(() => {
-        if (userLocation) {
-            // Sort by distance and filter for "Hub" (assuming Hubs are 24/7 or better stocked)
-            // In a real app, we'd have a specific 'is24x7' flag
-            const sorted = [...PHARMACIES].sort((a, b) => {
-                // Simple distance mock
-                return 0; // Already sorted in constants roughly
-            });
-            setNearbyPharmacies(sorted);
-        }
-    }, [userLocation]);
-
-    return (
-        <div className="pb-20">
-            <div className="bg-red-50 border-b border-red-100 p-6 mb-6 rounded-xl">
-                <div className="flex items-center gap-3 text-red-600 mb-2">
-                    <AlertTriangle size={32} className="animate-pulse" />
-                    <h1 className="text-2xl font-bold">Emergency Mode</h1>
-                </div>
-                <p className="text-red-800">
-                    Finding nearest 24/7 pharmacies and emergency supplies.
-                    <br /><strong>For medical emergencies, please call 108 immediately.</strong>
-                </p>
-            </div>
-
-            <div className="space-y-4">
-                {nearbyPharmacies.map(pharmacy => (
-                    <div key={pharmacy.id} className="bg-white border-l-4 border-red-500 rounded-lg shadow-sm p-5 flex justify-between items-center">
-                        <div>
-                            <h3 className="font-bold text-lg text-slate-900">{pharmacy.name}</h3>
-                            <p className="text-slate-500 text-sm flex items-center gap-1 mt-1">
-                                <MapPin size={14} /> {pharmacy.address}
-                            </p>
-                            <div className="flex gap-2 mt-3">
-                                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">Open 24/7</span>
-                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">Home Delivery</span>
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <a
-                                href={`tel:${pharmacy.phone}`}
-                                className="bg-red-600 text-white p-3 rounded-full shadow-lg shadow-red-200 hover:bg-red-700 transition-colors"
-                            >
-                                <Phone size={24} />
-                            </a>
-                            <button className="bg-slate-100 text-slate-600 p-3 rounded-full hover:bg-slate-200 transition-colors">
-                                <Navigation size={24} />
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-8 bg-white p-6 rounded-xl border border-slate-200">
-                <h3 className="font-bold text-lg mb-4">Emergency Contacts</h3>
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <span className="font-medium">Ambulance</span>
-                        <a href="tel:108" className="text-red-600 font-bold text-lg">108</a>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <span className="font-medium">Police</span>
-                        <a href="tel:100" className="text-slate-900 font-bold text-lg">100</a>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="pb-20 page-enter max-w-3xl mx-auto">
+      {/* Emergency Alert Banner */}
+      <div className="relative rounded-3xl p-8 mb-8 overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, rgba(127,29,29,0.6) 0%, rgba(5,12,26,0.95) 100%)',
+          border: '1px solid rgba(239,68,68,0.25)',
+          boxShadow: '0 0 60px rgba(239,68,68,0.1)',
+        }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)' }} />
         </div>
-    );
+        <div className="relative z-10 flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.35)' }}>
+            <ShieldAlert size={28} className="text-rose-400" style={{ animation: 'glow-pulse 1.5s ease-in-out infinite' }} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-white mb-1 tracking-tight">Emergency Mode Active</h1>
+            <p className="text-rose-200/70 text-sm leading-relaxed">
+              Finding nearest 24/7 pharmacies and emergency supplies.
+            </p>
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold text-rose-300"
+              style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+              For medical emergencies, call <strong className="ml-1">108</strong> immediately
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Emergency Contacts */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        {EMERGENCY_CONTACTS.map(ec => (
+          <a key={ec.name} href={`tel:${ec.number}`}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl text-center transition-all active:scale-95 card-hover"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: `${ec.color}20`, border: `1px solid ${ec.color}40` }}>
+              <Phone size={18} style={{ color: ec.color }} />
+            </div>
+            <span className="text-xs font-bold text-slate-400">{ec.name}</span>
+            <span className="text-xl font-black" style={{ color: ec.color }}>{ec.number}</span>
+          </a>
+        ))}
+      </div>
+
+      {/* Nearby Pharmacies */}
+      <div className="mb-6">
+        <h2 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+          <HeartPulse size={20} className="text-teal-500" /> Nearest 24/7 Pharmacies
+        </h2>
+        <div className="space-y-3">
+          {nearbyPharmacies.map((pharmacy, idx) => (
+            <div key={pharmacy.id} className="flex items-center gap-4 p-4 rounded-2xl transition-all"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="w-1 h-12 rounded-full flex-shrink-0" style={{ background: '#ef4444' }} />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-white text-sm truncate">{pharmacy.name}</h3>
+                <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 truncate">
+                  <MapPin size={11} /> {pharmacy.address}
+                </p>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>
+                    Open 24/7
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(59,130,246,0.12)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.2)' }}>
+                    Home Delivery
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <a href={`tel:${pharmacy.phone}`}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl text-rose-400 transition-all active:scale-90"
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                  <Phone size={16} />
+                </a>
+                <button className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-500 transition-all hover:text-teal-400"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <Navigation size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 };

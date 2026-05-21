@@ -1,169 +1,198 @@
 import React, { useState } from 'react';
-import { Send, CheckCircle2, MessageSquare, Star } from 'lucide-react';
+import { Send, CheckCircle2, MessageSquare, Star, TrendingUp } from 'lucide-react';
 import { addFeedback } from '../services/dbService';
+import { analytics } from '../services/posthog';
+
+const RATINGS = [
+  { value: 1, label: '😠', text: 'Poor' },
+  { value: 2, label: '☹️', text: 'Fair' },
+  { value: 3, label: '😐', text: 'Good' },
+  { value: 4, label: '🙂', text: 'Great' },
+  { value: 5, label: '🤩', text: 'Excellent' },
+];
 
 export const FeedbackSection = () => {
-    const [rating, setRating] = useState<number | null>(null);
-    const [comment, setComment] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSubmitted, setIsSubmitted] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
+  const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (rating === null) {
-            setError('Please select a rating to continue');
-            return;
-        }
-
-        setIsSubmitting(true);
-        setError(null);
-
-        try {
-            await addFeedback(rating, comment);
-            setIsSubmitted(true);
-            setTimeout(() => {
-                setIsSubmitted(false);
-                setRating(null);
-                setComment('');
-            }, 5000);
-        } catch (err) {
-            setError('System encountered an error. Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const ratings = [
-        { value: 1, label: '😠', text: 'Poor' },
-        { value: 2, label: '☹️', text: 'Fair' },
-        { value: 3, label: '😐', text: 'Good' },
-        { value: 4, label: '🙂', text: 'Great' },
-        { value: 5, label: '🤩', text: 'Excellent' },
-    ];
-
-    if (isSubmitted) {
-        return (
-            <div className="bg-slate-900 border border-white/10 rounded-[3rem] p-12 text-center animate-in zoom-in fade-in duration-500 shadow-2xl shadow-teal-900/20">
-                <div className="flex justify-center mb-6">
-                    <div className="bg-teal-500/20 p-4 rounded-full">
-                        <CheckCircle2 className="text-teal-400 w-16 h-16" />
-                    </div>
-                </div>
-                <h3 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">Feedback <span className="text-teal-400">Received</span></h3>
-                <p className="text-slate-400 max-w-sm mx-auto font-medium text-sm leading-relaxed uppercase tracking-widest opacity-60">
-                    Your insights help us refine the CureConnect ecosystem. Thank you for your contribution.
-                </p>
-            </div>
-        );
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === null) { setError('Please select a rating to continue'); return; }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await addFeedback(rating, comment);
+      analytics.feedbackSubmitted(rating, comment.trim().length > 0);
+      setIsSubmitted(true);
+      setTimeout(() => { setIsSubmitted(false); setRating(null); setComment(''); }, 6000);
+    } catch {
+      setError('System encountered an error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
+  if (isSubmitted) {
     return (
-        <section className="bg-slate-900 border border-white/5 rounded-[3.5rem] p-12 shadow-[0_40px_100px_rgba(0,0,0,0.4)] overflow-hidden relative group">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/5 rounded-full -mr-48 -mt-48 blur-[120px] group-hover:bg-teal-500/10 transition-all duration-1000"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full -ml-32 -mb-32 blur-[100px]"></div>
-
-            <div className="relative z-10 grid lg:grid-cols-2 gap-16 items-center">
-                <div>
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-teal-400">
-                        <MessageSquare size={14} />
-                        User Experience
-                    </div>
-                    <h2 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight uppercase tracking-tighter">
-                        Help us <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">improve</span><br/>
-                        the future.
-                    </h2>
-                    <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-md opacity-80">
-                        We value your perspective. Share your thoughts on how we can make healthcare more accessible for everyone.
-                    </p>
-                    
-                    <div className="mt-12 flex items-center gap-4">
-                        <div className="flex -space-x-3">
-                            {[1,2,3].map(i => (
-                                <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center">
-                                    <Star size={14} className="text-amber-400 fill-amber-400" />
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Trusted by 2k+ contributors</p>
-                    </div>
-                </div>
-
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] shadow-2xl">
-                    <form onSubmit={handleSubmit} className="space-y-10">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">Select a Rating</label>
-                            <div className="flex justify-between items-center bg-slate-800/50 p-6 rounded-[2rem] border border-white/5 shadow-inner">
-                                {ratings.map((r) => (
-                                    <button
-                                        key={r.value}
-                                        type="button"
-                                        onClick={() => {
-                                            console.log(`⭐ Selected rating: ${r.value}`);
-                                            setRating(r.value);
-                                        }}
-                                        className={`group relative flex flex-col items-center transition-all duration-500 hover:scale-125 focus:outline-none ${
-                                            rating === null 
-                                            ? 'opacity-80 scale-100' 
-                                            : rating === r.value 
-                                                ? 'opacity-100 scale-125' 
-                                                : 'opacity-20 grayscale scale-90'
-                                        }`}
-                                    >
-                                        <span className={`text-5xl transition-all duration-300 drop-shadow-sm ${rating === r.value ? 'drop-shadow-[0_0_20px_rgba(45,212,191,0.8)]' : 'group-hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]'}`}>
-                                            {r.label}
-                                        </span>
-                                        <span className={`absolute -bottom-8 text-[9px] font-black uppercase tracking-widest text-teal-400 transition-all duration-300 ${rating === r.value ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-                                            {r.text}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                            {rating === null && !isSubmitting && (
-                                <p className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest mt-4 text-center animate-pulse">
-                                    ↑ Please select an emoji to unlock the submit button
-                                </p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Your Thoughts</label>
-                            <textarea
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Tell us about your experience..."
-                                className="w-full h-40 bg-slate-800/40 border border-white/5 rounded-3xl p-6 text-white placeholder-slate-600 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all resize-none font-medium leading-relaxed"
-                            ></textarea>
-                        </div>
-
-                        {error && (
-                            <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl text-rose-400 text-[10px] font-black uppercase tracking-widest text-center animate-bounce">
-                                {error}
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || rating === null}
-                            className={`w-full h-16 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-4 transition-all duration-500 shadow-xl transform active:scale-[0.98] group ${
-                                rating === null 
-                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50' 
-                                : 'bg-white hover:bg-teal-500 text-slate-900 hover:text-white shadow-teal-500/20 hover:shadow-teal-500/40'
-                            }`}
-                        >
-                            {isSubmitting ? (
-                                <div className="w-6 h-6 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin"></div>
-                            ) : (
-                                <>
-                                    <span>{rating === null ? 'Select Rating First' : 'Send Feedback'}</span>
-                                    <Send size={18} className={`${rating === null ? 'opacity-20' : 'group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-500'}`} />
-                                </>
-                            )}
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </section>
+      <div className="rounded-3xl p-12 text-center"
+        style={{ background: 'rgba(13,148,136,0.06)', border: '1px solid rgba(13,148,136,0.15)' }}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
+          style={{ background: 'rgba(13,148,136,0.15)', border: '1px solid rgba(13,148,136,0.3)' }}>
+          <CheckCircle2 className="text-teal-400" size={32} />
+        </div>
+        <h3 className="text-2xl font-black text-white mb-2">Feedback Received!</h3>
+        <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
+          Thank you — your insights help us improve healthcare access for everyone.
+        </p>
+      </div>
     );
+  }
+
+  return (
+    <section className="relative rounded-3xl overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* Ambient glows */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-30%] right-[-10%] w-72 h-72 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.08) 0%, transparent 70%)' }} />
+        <div className="absolute bottom-[-20%] left-[-5%] w-56 h-56 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%)' }} />
+      </div>
+
+      <div className="relative z-10 grid lg:grid-cols-2 gap-0">
+        {/* Left — Copy */}
+        <div className="p-10 lg:p-12 flex flex-col justify-center"
+          style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest mb-6 self-start"
+            style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.2)', color: '#2dd4bf' }}>
+            <MessageSquare size={12} /> User Experience
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black text-white leading-tight mb-4">
+            Help us <span className="text-gradient-teal">improve</span> the future.
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+            We value your perspective. Share your experience to help us make healthcare more accessible for everyone.
+          </p>
+
+          <div className="mt-10 flex items-center gap-4">
+            <div className="flex -space-x-2.5">
+              {['A', 'B', 'C'].map((l, i) => (
+                <div key={i} className="w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white"
+                  style={{ background: `hsl(${170 + i * 30}, 60%, 35%)`, border: '2px solid rgba(5,12,26,1)', zIndex: 3 - i }}>
+                  {l}
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="flex items-center gap-1 mb-0.5">
+                {[1,2,3,4,5].map(i => <Star key={i} size={12} className="fill-amber-400 text-amber-400" />)}
+              </div>
+              <p className="text-xs text-slate-500 font-medium">Trusted by 2,000+ users</p>
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            {[{ label: 'Avg Rating', value: '4.8★' }, { label: 'Reviews', value: '2,000+' }].map(s => (
+              <div key={s.label} className="p-3 rounded-xl text-center"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <p className="text-lg font-black text-teal-400">{s.value}</p>
+                <p className="text-xs text-slate-600 mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right — Form */}
+        <div className="p-10 lg:p-12">
+          <form onSubmit={handleSubmit} className="space-y-7">
+            {/* Rating */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">
+                How was your experience?
+              </label>
+              <div className="flex justify-between items-center p-5 rounded-2xl"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                {RATINGS.map(r => (
+                  <button key={r.value} type="button"
+                    onClick={() => { setRating(r.value); }}
+                    className="flex flex-col items-center gap-2 transition-all duration-300 focus:outline-none group relative"
+                    style={{
+                      transform: rating === r.value ? 'scale(1.2)' : rating !== null ? 'scale(0.85)' : 'scale(1)',
+                      opacity: rating !== null && rating !== r.value ? 0.35 : 1,
+                      filter: rating !== null && rating !== r.value ? 'grayscale(0.8)' : 'none',
+                    }}>
+                    <span className="text-4xl leading-none" style={{
+                      filter: rating === r.value ? 'drop-shadow(0 0 12px rgba(13,148,136,0.7))' : 'none',
+                      transition: 'filter 0.3s ease',
+                    }}>
+                      {r.label}
+                    </span>
+                    {rating === r.value && (
+                      <span className="text-[10px] font-black text-teal-400 uppercase tracking-widest">{r.text}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {rating === null && (
+                <p className="text-[11px] text-amber-500/70 font-medium mt-2 text-center">
+                  ↑ Select an emoji to continue
+                </p>
+              )}
+            </div>
+
+            {/* Comment */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                Your thoughts (optional)
+              </label>
+              <textarea value={comment} onChange={e => setComment(e.target.value)}
+                placeholder="Tell us what you loved or what we can improve..."
+                rows={4}
+                className="w-full rounded-xl p-4 text-sm text-white placeholder-slate-600 resize-none outline-none transition-all duration-300"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+                onFocus={e => {
+                  e.currentTarget.style.border = '1px solid rgba(13,148,136,0.4)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(13,148,136,0.08)';
+                }}
+                onBlur={e => {
+                  e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }} />
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-xl text-xs font-bold text-rose-400 text-center"
+                style={{ background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)' }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={isSubmitting || rating === null}
+              className="w-full h-14 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 transition-all duration-300 active:scale-[0.98]"
+              style={{
+                background: rating === null
+                  ? 'rgba(255,255,255,0.04)'
+                  : 'linear-gradient(135deg, #0d9488, #0f766e)',
+                color: rating === null ? '#475569' : 'white',
+                cursor: rating === null ? 'not-allowed' : 'pointer',
+                boxShadow: rating !== null ? '0 0 25px rgba(13,148,136,0.25)' : 'none',
+              }}>
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <><span>{rating === null ? 'Select a Rating First' : 'Send Feedback'}</span>
+                  {rating !== null && <Send size={16} />}</>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  );
 };

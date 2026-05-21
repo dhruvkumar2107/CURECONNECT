@@ -1,206 +1,233 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Trash2, ArrowRight, CheckCircle, Clock, ShoppingCart } from 'lucide-react';
+import { Trash2, ArrowRight, CheckCircle, Clock, ShoppingCart, Package, MapPin } from 'lucide-react';
 import { PHARMACIES } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { createOrder } from '../services/dbService';
+import { analytics } from '../services/posthog';
 
 export const CartPage = () => {
   const { cart, removeFromCart, clearCart, user } = useApp();
   const navigate = useNavigate();
-
-  const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const [checkedOut, setCheckedOut] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [pickupTime, setPickupTime] = useState('18:00');
 
-  // Group items by pharmacy
   const groupedItems = cart.reduce((acc, item) => {
     if (!acc[item.pharmacyId]) acc[item.pharmacyId] = [];
     acc[item.pharmacyId].push(item);
     return acc;
   }, {} as Record<string, typeof cart>);
 
-  const handleCheckout = async () => {
-    if (!user) {
-      navigate('/login');
-      return;
+  useEffect(() => {
+    if (cart.length > 0) {
+      analytics.cartViewed(cart.length, total, Object.keys(groupedItems).length);
     }
-    
+  }, []);
+
+  const handleCheckout = async () => {
+    if (!user) { navigate('/login'); return; }
+    analytics.checkoutInitiated(cart.length, total, showSchedule);
     try {
-      // 1. Create orders in Firestore for each pharmacy
-      for (const [pharmacyId, items] of (Object.entries(groupedItems) as [string, any[]][])) {
-        const pharmacyTotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+      for (const [pharmacyId, items] of Object.entries(groupedItems) as [string, any[]][]) {
+        const pharmacyTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
         await createOrder({
-          pharmacyId,
-          customerId: user.id,
-          customerName: user.name,
-          items: items as any,
-          total: pharmacyTotal,
-          status: 'Pending',
+          pharmacyId, customerId: user.id, customerName: user.name,
+          items: items as any, total: pharmacyTotal, status: 'Pending',
           createdAt: new Date().toISOString(),
           pickupTime: showSchedule ? pickupTime : undefined
         });
       }
-
+      analytics.orderPlaced(Object.keys(groupedItems), cart.length, total, showSchedule ? pickupTime : undefined);
       setCheckedOut(true);
       setTimeout(() => {
         clearCart();
         setCheckedOut(false);
         setShowSchedule(false);
-        alert("Order reserved successfully and recorded in database! Please pick up from the pharmacy within 24 hours.");
-      }, 2000);
+      }, 3000);
     } catch (error: any) {
-      console.error("Checkout failed:", error);
-      alert(`Failed to create reservation: ${error.message || 'Database connection error'}. Please check your connection and try again.`);
+      alert(`Reservation failed: ${error.message || 'Please check your connection and try again.'}`);
     }
   };
 
+  // ── Empty Cart ──
   if (cart.length === 0 && !checkedOut) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-center animate-in fade-in duration-700">
-        <div className="bg-slate-50 p-10 rounded-[3rem] mb-8 shadow-inner">
-          <ShoppingCart size={64} className="text-slate-200" />
+      <div className="flex flex-col items-center justify-center py-32 text-center page-enter">
+        <div className="w-24 h-24 rounded-3xl flex items-center justify-center mb-6"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <ShoppingCart size={40} className="text-slate-700" />
         </div>
-        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Your cart is <span className="text-teal-600">empty</span></h2>
-        <p className="text-slate-400 mt-4 max-w-xs font-medium uppercase text-[10px] tracking-widest leading-relaxed">Search for medicines and medications to reserve them instantly.</p>
-        <button 
-          onClick={() => navigate('/')}
-          className="mt-10 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-teal-600 transition-all active:scale-95 shadow-xl shadow-slate-200"
-        >
+        <h2 className="text-2xl font-black text-white mb-2">Your cart is empty</h2>
+        <p className="text-slate-500 text-sm max-w-xs leading-relaxed mb-8">
+          Search for medicines and reserve them from local pharmacies near you.
+        </p>
+        <button onClick={() => navigate('/')}
+          className="px-8 py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95"
+          style={{ background: 'linear-gradient(135deg, #0d9488, #0f766e)', boxShadow: '0 0 20px rgba(13,148,136,0.3)' }}>
           Browse Medicines
         </button>
       </div>
     );
   }
 
+  // ── Success State ──
   if (checkedOut) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-center animate-in zoom-in fade-in duration-500">
-        <div className="bg-teal-50 p-10 rounded-[3rem] mb-8 shadow-xl shadow-teal-100 border border-teal-100">
-          <CheckCircle size={80} className="text-teal-500" />
+      <div className="flex flex-col items-center justify-center py-32 text-center page-enter">
+        <div className="w-28 h-28 rounded-3xl flex items-center justify-center mb-6"
+          style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)' }}>
+          <CheckCircle size={56} className="text-teal-400" />
         </div>
-        <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Reservation <span className="text-teal-600">Confirmed</span></h2>
-        <p className="text-slate-500 mt-6 max-w-md font-medium text-sm leading-relaxed">
-          Your reservation is successfully processed. A confirmation has been sent to your primary contact.
-          {showSchedule && <span className="block font-black text-teal-600 mt-4 uppercase tracking-[0.1em]">Scheduled for {pickupTime}</span>}
+        <h2 className="text-3xl font-black text-white mb-3">Reservation Confirmed!</h2>
+        <p className="text-slate-400 text-sm max-w-sm leading-relaxed">
+          Your medicines are reserved. Please pick them up from the pharmacy within 24 hours.
+          {showSchedule && <span className="block text-teal-400 font-bold mt-3">Scheduled for {pickupTime}</span>}
         </p>
-        <button 
-          onClick={() => navigate('/')}
-          className="mt-12 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-teal-600 transition-all opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-forwards"
-        >
-          Continue Shopping
-        </button>
+        <div className="flex gap-3 mt-8">
+          <button onClick={() => navigate('/')}
+            className="px-6 py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #0d9488, #0f766e)' }}>
+            Continue Shopping
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="pb-40 px-4 sm:px-0 max-w-5xl mx-auto">
-      <div className="flex flex-col mb-12 animate-in slide-in-from-left-4 duration-500">
-        <h1 className="text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase">Your <span className="text-teal-600">Reservations</span></h1>
-        <div className="h-2 w-24 bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full mt-6 shadow-xl shadow-teal-100"></div>
+    <div className="pb-48 max-w-4xl mx-auto page-enter">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-white tracking-tight">
+          Your <span className="text-gradient-teal">Reservations</span>
+        </h1>
+        <p className="text-slate-500 text-sm mt-1">{cart.length} item{cart.length !== 1 ? 's' : ''} across {Object.keys(groupedItems).length} pharmacy{Object.keys(groupedItems).length !== 1 ? 's' : ''}</p>
       </div>
 
-      <div className="space-y-10">
+      {/* Pharmacy Groups */}
+      <div className="space-y-4">
         {(Object.entries(groupedItems) as [string, any[]][]).map(([pharmacyId, items], gIdx) => {
           const pharmacy = PHARMACIES.find(p => p.id === pharmacyId);
+          const groupTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
           return (
-            <div key={pharmacyId} style={{ animationDelay: `${gIdx * 100}ms` }} className="bg-white border border-slate-100 rounded-[3rem] overflow-hidden shadow-[0_15px_50px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_70px_rgba(0,0,0,0.06)] transition-all duration-700 animate-in slide-in-from-bottom-8">
-              <div className="bg-slate-50/50 backdrop-blur-md px-10 py-8 border-b border-slate-100 flex flex-col sm:row justify-between items-start sm:items-center gap-6">
-                <div>
-                  <h3 className="font-black text-2xl text-slate-900 uppercase tracking-tighter">{pharmacy?.name || 'Unknown Pharmacy'}</h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{pharmacy?.address}</p>
+            <div key={pharmacyId} className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              {/* Pharmacy Header */}
+              <div className="flex items-center justify-between px-6 py-4"
+                style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(13,148,136,0.15)', border: '1px solid rgba(13,148,136,0.25)' }}>
+                    <Package size={16} className="text-teal-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-sm">{pharmacy?.name || 'myUpchar Online'}</h3>
+                    {pharmacy?.address && (
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <MapPin size={10} /> {pharmacy.address}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 px-5 py-2.5 bg-white rounded-2xl border border-slate-100 shadow-sm text-[10px] font-black uppercase tracking-[0.2em] text-teal-600">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-                  </span>
-                  Accepting Pickup
+                <div className="flex items-center gap-1.5 text-xs font-bold text-teal-400"
+                  style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.2)', padding: '4px 10px', borderRadius: '999px' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                  Accepting
                 </div>
               </div>
-              <div className="divide-y divide-slate-50 bg-white">
+
+              {/* Items */}
+              <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                 {items.map((item, idx) => (
-                  <div key={`${item.id}-${idx}`} className="flex items-center justify-between p-10 hover:bg-slate-50/30 transition-all duration-300 group">
-                    <div className="flex-1">
-                      <h4 className="font-black text-slate-900 text-xl uppercase tracking-tighter group-hover:text-teal-600 transition-colors">{item.name}</h4>
-                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Inventory Group: <span className="text-slate-900">RX-{item.id.slice(0,4).toUpperCase()}</span></p>
-                      <div className="flex items-center gap-4 mt-4">
-                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600 uppercase tracking-widest">QTY: {item.quantity}</span>
-                      </div>
+                  <div key={`${item.id}-${idx}`} className="flex items-center gap-4 px-6 py-4 group transition-all hover:bg-white/[0.02]">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <span className="text-base font-black text-slate-400">{item.name.charAt(0)}</span>
                     </div>
-                    <div className="text-right flex items-center gap-10">
-                      <div className="flex flex-col">
-                        <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">₹{item.price * item.quantity}</span>
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Total</span>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.id, item.pharmacyId)}
-                        className="w-14 h-14 flex items-center justify-center text-slate-200 hover:text-rose-500 bg-white border border-slate-100 rounded-2xl hover:shadow-2xl hover:border-rose-100 transition-all duration-300 active:scale-90"
-                      >
-                        <Trash2 size={24} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-white text-sm truncate">{item.name}</h4>
+                      <p className="text-xs text-slate-600 mt-0.5">Qty: {item.quantity} × ₹{item.price}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-white font-black text-base">₹{item.price * item.quantity}</span>
+                      <button onClick={() => {
+                        analytics.itemRemovedFromCart(item.name, item.price);
+                        removeFromCart(item.id, item.pharmacyId);
+                      }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                        style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Group total */}
+              <div className="px-6 py-3 flex justify-end" style={{ background: 'rgba(0,0,0,0.1)' }}>
+                <span className="text-xs text-slate-500 font-medium">Subtotal: <span className="text-white font-bold">₹{groupTotal}</span></span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Premium Floating Checkout Bar */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-50 animate-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both">
-        <div className="bg-slate-900/90 backdrop-blur-3xl border border-white/10 rounded-[3rem] p-8 shadow-[0_30px_100px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-10">
-          <div className="flex items-center gap-10 divide-x divide-white/10">
-            {/* Schedule Pickup Toggle */}
-            <div className="flex items-center gap-4">
-              <div 
-                className={`w-14 h-7 rounded-full p-1.5 cursor-pointer transition-all duration-500 ${showSchedule ? 'bg-teal-500' : 'bg-slate-700'}`}
-                onClick={() => setShowSchedule(!showSchedule)}
-              >
-                <div className={`w-4 h-4 rounded-full bg-white shadow-lg transition-all duration-500 ${showSchedule ? 'translate-x-7 rotate-[360deg]' : 'translate-x-0'}`}></div>
+      {/* ── Floating Checkout Bar ── */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-50">
+        <div className="rounded-2xl p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"
+          style={{
+            background: 'rgba(13,22,41,0.95)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(13,148,136,0.05)',
+          }}>
+
+          <div className="flex items-center gap-6">
+            {/* Schedule Toggle */}
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={() => setShowSchedule(!showSchedule)}
+                  className="w-12 h-6 rounded-full p-0.5 transition-all duration-300 relative"
+                  style={{ background: showSchedule ? '#0d9488' : 'rgba(255,255,255,0.1)' }}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${showSchedule ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
               </div>
-              <div className="flex flex-col">
-                <label className="text-[10px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-2 whitespace-nowrap">
-                  <Clock size={12} className="text-teal-400" /> Pickup Time
-                </label>
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                  <Clock size={11} className="text-teal-500" /> Schedule
+                </p>
                 {showSchedule ? (
-                  <input
-                    type="time"
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className="bg-transparent border-none text-teal-400 p-0 text-lg font-black tracking-tight outline-none focus:ring-0"
-                  />
+                  <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)}
+                    className="text-teal-400 font-black text-sm bg-transparent border-none outline-none mt-0.5" />
                 ) : (
-                  <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest mt-1">Asap Pickup</span>
+                  <span className="text-slate-600 text-xs">ASAP pickup</span>
                 )}
               </div>
             </div>
 
-            <div className="pl-10">
-              <p className="text-[10px] font-black text-teal-400 uppercase tracking-[0.4em] mb-2 opacity-70">Pay at Pharmacy</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-white text-[14px] font-black uppercase opacity-40">INR</span>
-                <p className="text-4xl font-black text-white tracking-tighter leading-none">₹{total}</p>
-              </div>
+            <div className="w-px h-10 bg-white/10" />
+
+            {/* Total */}
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Total</p>
+              <p className="text-2xl font-black text-white leading-none">₹{total}</p>
             </div>
           </div>
 
-          <button
-            onClick={handleCheckout}
-            className="group relative bg-white hover:bg-teal-500 text-slate-900 hover:text-white px-12 h-20 rounded-[2rem] font-black text-[13px] uppercase tracking-[0.3em] transition-all duration-500 transform active:scale-[0.97] shadow-2xl flex items-center justify-center gap-4 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <span className="relative z-10">{user ? (showSchedule ? 'Confirm Schedule' : 'Reserve Locally') : 'Sign in to Continue'}</span>
-            <ArrowRight size={20} className="relative z-10 group-hover:translate-x-2 transition-transform duration-500" />
+          <button onClick={handleCheckout}
+            className="flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-black text-sm text-white uppercase tracking-wider transition-all duration-300 active:scale-[0.97] sm:min-w-[200px]"
+            style={{ background: 'linear-gradient(135deg, #0d9488, #0f766e)', boxShadow: '0 0 30px rgba(13,148,136,0.3)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 50px rgba(13,148,136,0.5)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 30px rgba(13,148,136,0.3)'; }}>
+            <span>{user ? (showSchedule ? 'Confirm Schedule' : 'Reserve Now') : 'Sign In to Continue'}</span>
+            <ArrowRight size={16} />
           </button>
         </div>
       </div>
     </div>
   );
-}
+};
