@@ -45,7 +45,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           setUserLocation({ latitude: 12.9716, longitude: 77.5946 });
           setLocationError("Could not detect location. Using default.");
           setIsLoadingLocation(false);
-        }
+        },
+        { timeout: 5000 } // 5-second timeout to fallback cleanly if prompt hangs
       );
     } else {
       setLocationError("Geolocation not supported");

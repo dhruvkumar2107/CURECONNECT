@@ -54,6 +54,7 @@ export const PartnerSignUpPage = () => {
                 phone: formData.phone,
                 type: 'Local Store', // Default
                 rating: 0,
+                location: { latitude: 12.9716, longitude: 77.5946 }, // Bangalore default
                 inventory: []
             });
 

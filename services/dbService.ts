@@ -4,7 +4,10 @@ import { Medicine, Pharmacy, SearchResult, Coordinate, Order } from '../types';
 import { MEDICINES as CONST_MEDICINES } from '../constants';
 
 // Haversine formula to calculate distance in KM
-const calculateDistance = (coord1: Coordinate, coord2: Coordinate): number => {
+const calculateDistance = (coord1: Coordinate | null | undefined, coord2: Coordinate | null | undefined): number => {
+    if (!coord1 || !coord2 || typeof coord1.latitude !== 'number' || typeof coord2.latitude !== 'number' || typeof coord1.longitude !== 'number' || typeof coord2.longitude !== 'number') {
+        return 999; // Return high distance so it sorts to the bottom if coordinates are missing
+    }
     const R = 6371; // Radius of the earth in km
     const dLat = deg2rad(coord2.latitude - coord1.latitude);
     const dLon = deg2rad(coord2.longitude - coord1.longitude);

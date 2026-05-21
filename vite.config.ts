@@ -19,8 +19,14 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
     },
 
-    define: {
+        define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+    },
+
+    optimizeDeps: {
+      esbuildOptions: {
+        sourcemap: false,
+      },
     },
 
     resolve: {
