@@ -31,6 +31,14 @@ export const DbtDemoPage = () => {
   const [showExplanation, setShowExplanation] = useState<boolean>(true);
   
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<any>(null);
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   // Scroll terminal logs to bottom
   useEffect(() => {
@@ -470,14 +478,24 @@ from (
       { msg: '\nFinished running 4 views, 3 tables in 4.96s.\n\nCompleted Successfully! 🎉 All models compiled and updated.' }
     ];
 
+    if (intervalRef.current) clearInterval(intervalRef.current);
     let currentStep = 0;
-    const interval = setInterval(() => {
+    
+    intervalRef.current = setInterval(() => {
       if (currentStep < steps.length) {
-        setTerminalOutput(prev => [...prev, steps[currentStep].msg]);
-        setRunProgress(steps[currentStep].progress);
+        const step = steps[currentStep];
+        if (step && step.msg) {
+          setTerminalOutput(prev => [...prev, step.msg]);
+          if (step.progress !== undefined) {
+            setRunProgress(step.progress);
+          }
+        }
         currentStep++;
       } else {
-        clearInterval(interval);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsRunning(false);
       }
     }, 450);
@@ -526,14 +544,24 @@ from (
     ];
 
     const steps = injectAnomaly ? anomalySteps : normalSteps;
+    if (intervalRef.current) clearInterval(intervalRef.current);
     let currentStep = 0;
-    const interval = setInterval(() => {
+    
+    intervalRef.current = setInterval(() => {
       if (currentStep < steps.length) {
-        setTerminalOutput(prev => [...prev, steps[currentStep].msg]);
-        setRunProgress(steps[currentStep].progress);
+        const step = steps[currentStep];
+        if (step && step.msg) {
+          setTerminalOutput(prev => [...prev, step.msg]);
+          if (step.progress !== undefined) {
+            setRunProgress(step.progress);
+          }
+        }
         currentStep++;
       } else {
-        clearInterval(interval);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsRunning(false);
       }
     }, 450);
