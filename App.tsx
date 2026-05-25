@@ -14,6 +14,7 @@ import { PartnershipDashboard } from './pages/PartnershipDashboard';
 import { RemindersPage } from './pages/RemindersPage';
 import { PartnerSignUpPage } from './pages/PartnerSignUpPage';
 import { TeleconsultationPage } from './pages/TeleconsultationPage';
+import { DbtDemoPage } from './pages/DbtDemoPage';
 import { TourGuide } from './components/TourGuide';
 import { DatabaseExplorer } from './components/DatabaseExplorer';
 import { HeartPulse, Github, Shield, Zap, Activity } from 'lucide-react';
@@ -88,6 +89,7 @@ const App = () => {
                 <Route path="/partner-signup"         element={<PartnerSignUpPage />} />
                 <Route path="/reminders"              element={<RemindersPage />} />
                 <Route path="/teleconsult"            element={<TeleconsultationPage />} />
+                <Route path="/dbt-demo"               element={<DbtDemoPage />} />
                 <Route path="/login"                  element={<LoginPage />} />
                 <Route path="/signup"                 element={<SignUpPage />} />
                 <Route path="/partner-login"          element={<PartnerLoginPage />} />

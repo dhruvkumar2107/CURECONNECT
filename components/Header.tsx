@@ -101,6 +101,7 @@ export const Header = () => {
               <NavLink to="/upload-prescription" icon={<FileText size={14} />} label="Upload Rx"  id="upload-rx-link" />
               <NavLink to="/teleconsult"          icon={<Video size={14} />}     label="Consult"    id="teleconsult-link" />
               <NavLink to="/reminders"            icon={<Clock size={14} />}     label="Reminders" />
+              <NavLink to="/dbt-demo"             icon={<Zap size={14} className="text-amber-400" />} label="DBT Analytics" />
 
               <div className="w-px h-4 bg-white/10 mx-3" />
 
@@ -244,6 +245,7 @@ export const Header = () => {
             <MobileNavLink to="/upload-prescription" icon={<FileText size={17} />}      label="Upload Prescription"            onClick={() => setIsMenuOpen(false)} />
             <MobileNavLink to="/teleconsult"         icon={<Video size={17} />}          label="Teleconsultation"               onClick={() => setIsMenuOpen(false)} />
             <MobileNavLink to="/reminders"           icon={<Clock size={17} />}          label="Reminders"                      onClick={() => setIsMenuOpen(false)} />
+            <MobileNavLink to="/dbt-demo"            icon={<Zap size={17} className="text-amber-400" />} label="DBT Analytics" onClick={() => setIsMenuOpen(false)} />
 
             {user?.role === 'partner' ? (
               <MobileNavLink to="/partnership-dashboard" icon={<Store size={17} />} label="Partner Dashboard" highlight onClick={() => setIsMenuOpen(false)} />

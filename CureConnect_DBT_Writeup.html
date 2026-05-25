@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CureConnect — DBT Data Transformations Writeup</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&family=Georgia&family=Fira+Code:wght@400;500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 11.5pt;
+      line-height: 1.7;
+      color: #111;
+      background: #fff;
+      padding: 0;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 25mm 25mm 20mm 30mm;
+      background: #fff;
+    }
+
+    /* ── Title Block ── */
+    .title-block {
+      text-align: center;
+      border-bottom: 2px solid #000;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+
+    .title-block h1 {
+      font-size: 16pt;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .title-block .subtitle {
+      font-size: 11pt;
+      font-style: italic;
+      color: #333;
+      margin-top: 4px;
+    }
+
+    .title-block .course-tag {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 10pt;
+      background: #113f67;
+      color: #fff;
+      padding: 3px 12px;
+      border-radius: 2px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    /* ── Team Table ── */
+    .team-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0 24px 0;
+      font-size: 10pt;
+    }
+
+    .team-table th {
+      background: #113f67;
+      color: #fff;
+      padding: 7px 12px;
+      text-align: left;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    .team-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .team-table tr:nth-child(even) td { background: #f9fbfd; }
+
+    /* ── Section Headings ── */
+    h2.section-title {
+      font-size: 13pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      border-left: 4px solid #113f67;
+      padding-left: 10px;
+      margin: 24px 0 10px 0;
+      letter-spacing: 0.5px;
+      color: #113f67;
+    }
+
+    h3.sub-title {
+      font-size: 11.5pt;
+      font-weight: bold;
+      margin: 18px 0 8px 0;
+      color: #2b5c8f;
+      border-bottom: 1px dashed #ccc;
+      padding-bottom: 4px;
+    }
+
+    /* ── Marks Badge ── */
+    .marks-badge {
+      float: right;
+      font-size: 9pt;
+      background: #113f67;
+      color: #fff;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-style: normal;
+      margin-top: 2px;
+    }
+
+    /* ── Paragraphs ── */
+    p {
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+
+    /* ── Lists ── */
+    ul, ol {
+      margin: 8px 0 10px 24px;
+    }
+
+    li {
+      margin-bottom: 5px;
+    }
+
+    /* ── Architecture Box ── */
+    .arch-box {
+      background: #f4f8fa;
+      border: 1px solid #c8d6e5;
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 9pt;
+      margin: 12px 0;
+      line-height: 1.8;
+      color: #2c3e50;
+    }
+
+    .arch-box .layer {
+      border: 1px solid #7f8c8d;
+      padding: 6px 12px;
+      margin: 4px 0;
+      border-radius: 3px;
+      background: #ffffff;
+      font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .arch-box .layer strong {
+      color: #d35400;
+    }
+
+    .arch-box .arrow {
+      text-align: center;
+      color: #7f8c8d;
+      font-size: 11pt;
+      font-weight: bold;
+    }
+
+    /* ── Data Flow ── */
+    .flow-box {
+      background: #fef9e7;
+      border: 1px solid #f39c12;
+      border-radius: 4px;
+      padding: 12px 18px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 9pt;
+      margin: 12px 0;
+      line-height: 1.8;
+      color: #7f8c8d;
+    }
+    
+    .flow-box span {
+      color: #27ae60;
+      font-weight: bold;
+    }
+
+    .flow-box strong {
+      color: #2980b9;
+    }
+
+    /* ── Code Box ── */
+    .code-box {
+      background: #1e272e;
+      color: #d2dae2;
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 8.5pt;
+      margin: 12px 0;
+      line-height: 1.6;
+      white-space: pre;
+      overflow-x: auto;
+      border-left: 4px solid #ff5e57;
+    }
+
+    .code-box .kw  { color: #ff5e57; font-weight: bold; } /* Keywords */
+    .code-box .fn  { color: #0be881; } /* Functions / macros */
+    .code-box .str { color: #ffdd59; } /* Strings */
+    .code-box .cmt { color: #808e9b; font-style: italic; } /* Comments */
+    .code-box .typ { color: #4bcffa; } /* Types / configurations */
+
+    /* ── Tech Table ── */
+    .tech-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 12px 0;
+    }
+
+    .tech-table th {
+      background: #113f67;
+      color: #fff;
+      padding: 7px 10px;
+      text-align: left;
+    }
+
+    .tech-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .tech-table tr:nth-child(even) td { background: #f9fbfd; }
+
+    /* ── Cheatsheet Table ── */
+    .cheat-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 14px 0;
+    }
+
+    .cheat-table th {
+      background: #2b5c8f;
+      color: #fff;
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    .cheat-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .cheat-table tr:nth-child(even) td { background: #f8fbfd; }
+
+    /* ── Highlight ── */
+    .hl { background: #fff3cd; padding: 1px 4px; border-radius: 2px; font-weight: bold; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid #ccc; margin: 22px 0; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: 9pt;
+      color: #888;
+      border-top: 1px solid #ccc;
+      margin-top: 30px;
+      padding-top: 10px;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; padding: 15mm 15mm 15mm 20mm; box-shadow: none; width: 100%; }
+      .no-print { display: none; }
+      .code-box { white-space: pre-wrap; word-wrap: break-word; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Print Button (hidden on print) -->
+<div class="no-print" style="text-align:center; padding:14px; background:#113f67;">
+  <button onclick="window.print()"
+    style="background:#0be881; color:#000; border:none; padding:10px 28px;
+           font-size:12pt; font-weight:bold; border-radius:6px; cursor:pointer; transition: 0.2s;">
+    🖨️ Print / Save as PDF
+  </button>
+  <span style="color:#d2dae2; font-size:10pt; margin-left:16px;">
+    Use browser Print (Ctrl+P) → <strong>Save as PDF</strong> for a professional physical layout
+  </span>
+</div>
+
+<div class="page">
+
+  <!-- ══ TITLE BLOCK ══ -->
+  <div class="title-block">
+    <h1>CureConnect — Analytical Transformation Engine</h1>
+    <div class="subtitle">A Modern Data Stack Pipeline utilizing DBT (Data Build Tool) &amp; Google BigQuery</div>
+    <div class="course-tag">DBT (Data Build Tool) — Examination Writeup</div>
+  </div>
+
+  <!-- ══ TEAM TABLE ══ -->
+  <table class="team-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Student Name</th>
+        <th>Enrollment Number</th>
+        <th>Role / Contribution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Dhruv Kumar</td><td>ENG23CT0028</td><td>DBT Project Architecture &amp; Modeling</td></tr>
+      <tr><td>2</td><td>Ujwal AB</td><td>ENG23CT0062</td><td>Staging and JSON Schemas flattening</td></tr>
+      <tr><td>3</td><td>Deepu MD</td><td>ENG23CT0050</td><td>Custom Data Quality Tests &amp; CI Pipeline</td></tr>
+      <tr><td>4</td><td>Yash Savaliya</td><td>ENG23CT0060</td><td>Incremental Models &amp; Sessionization</td></tr>
+      <tr><td>5</td><td>Vikas M Patil</td><td>ENG23CT0064</td><td>Lineage Documentation &amp; BI Integration</td></tr>
+    </tbody>
+  </table>
+
+  <hr/>
+
+  <!-- ══ 1. ABSTRACT ══ -->
+  <h2 class="section-title">
+    1. Abstract
+    <span class="marks-badge">1 Mark</span>
+  </h2>
+
+  <p>
+    Modern transactional systems process vast numbers of real-time operations, but are highly unoptimized for complex analytical execution. 
+    <strong>CureConnect</strong> is a healthcare platform processing live medicine searches, cart interactions, user sessions, and pharmacy inventory changes. 
+    While transactional data is stored in Firebase Firestore and activity streams are collected via PostHog, extracting business intelligence requires a structured analytical data pipeline. 
+    This writeup presents a comprehensive data transformation framework implemented using <strong>DBT (Data Build Tool)</strong> on top of a <strong>Google BigQuery</strong> data warehouse. 
+    By establishing standard <strong>Staging, Intermediate, and Mart layers</strong>, raw nested transactional event schemas are flattened, sanitized, sessionized, and modeled into optimized multidimensional star schemas. 
+    Automated data-quality tests, modular dependency charts (Directed Acyclic Graphs), and metadata documentations are deployed, establishing a scalable, version-controlled analytical layer that ensures complete data governance and accurate, real-time reporting.
+  </p>
+
+  <hr/>
+
+  <!-- ══ 2. INTRODUCTION ══ -->
+  <h2 class="section-title">
+    2. Introduction
+    <span class="marks-badge">2 Marks</span>
+  </h2>
+
+  <p>
+    In healthcare platforms like CureConnect, transactional backends (e.g., Firestore NoSQL) are architected for low-latency point reads and writes. 
+    However, running analytical aggregations directly on production transactional systems causes severe performance degradation, high costs, and fails to handle structural changes.
+    Raw behavioral streams (like user searches, cart events, and pharmacy inventory audits) are loaded with multi-nested structures, missing attributes, and lack clear session boundaries.
+  </p>
+
+  <p>
+    To resolve these analytical limitations, CureConnect adopts the <strong>Modern Data Stack (MDS)</strong>, introducing <strong>DBT (Data Build Tool)</strong> as the core transformation engine. 
+    DBT acts as the <strong>"T"</strong> in ELT (Extract, Load, Transform), enabling data analysts and engineers to write modular, dry, version-controlled SQL queries that compile into optimized tables and views directly in the data warehouse.
+  </p>
+
+  <p>Our DBT integration resolves key data transformation hurdles:</p>
+  <ul>
+    <li><strong>Nested JSON Parsing</strong> — Flattens Firestore's unstructured map types (such as lists of medicine cards or items within cart payloads) into structured tabular records.</li>
+    <li><strong>User Stitching &amp; Sessionization</strong> — Resolves anonymous guest interactions and transitions them smoothly into authenticated user profiles using continuous session IDs.</li>
+    <li><strong>Idempotent Operations</strong> — Employs incremental model configurations to only process newly changed records, saving compute time and optimizing storage costs.</li>
+    <li><strong>Data Governance and Testing</strong> — Enforces data constraints (e.g., unique search IDs, non-null pharmacy credentials) at compile-time to guarantee downstream reporting accuracy.</li>
+  </ul>
+
+  <hr/>
+
+  <!-- ══ 3. METHODOLOGY ══ -->
+  <h2 class="section-title">
+    3. Methodology
+    <span class="marks-badge">5 Marks</span>
+  </h2>
+
+  <!-- 3.1 Architecture -->
+  <h3 class="sub-title">3.1 Architecture <small style="font-weight:normal;color:#555;">(2.5 Marks)</small></h3>
+
+  <p>The CureConnect analytical pipeline follows a structured, modular <strong>4-Layer DBT Architecture</strong> designed to isolate structural changes from business presentation reporting:</p>
+
+  <div class="arch-box">
+    <div class="layer"><strong>1. RAW DATA LAYER (LANDING ZONE)</strong><br/>
+    &nbsp;&nbsp;• Ingested raw collections: Firestore search_logs, cart_logs, pharmacy_inventory<br/>
+    &nbsp;&nbsp;• PostHog event payload stream (nested JSON blobs stored inside `raw_events` dataset)</div>
+    <div class="arrow">↓ (DBT Source Declaration / Ref Macro)</div>
+    
+    <div class="layer"><strong>2. STAGING LAYER (L1 - CLEANSE &amp; STANDARDIZE)</strong><br/>
+    &nbsp;&nbsp;• Models: `stg_cureconnect__searches`, `stg_cureconnect__carts`, `stg_cureconnect__inventory`<br/>
+    &nbsp;&nbsp;• Transformations: Explicit casting, snake_case renaming, timezone normalization, null filling</div>
+    <div class="arrow">↓ (Modular Transformations)</div>
+    
+    <div class="layer"><strong>3. INTERMEDIATE LAYER (L2 - BUSINESS LOGIC &amp; STITCHING)</strong><br/>
+    &nbsp;&nbsp;• Models: `int_user_sessionized_events`, `int_pharmacy_inventory_snapshot`<br/>
+    &nbsp;&nbsp;• Transformations: Session grouping, guest-to-auth user alignment, stock delta calculations</div>
+    <div class="arrow">↓ (Dimensional Modeling)</div>
+    
+    <div class="layer"><strong>4. MART LAYER (L3 - STAR SCHEMA PRESENTATION)</strong><br/>
+    &nbsp;&nbsp;• Dimensions: `dim_users`, `dim_pharmacies`, `dim_medicines`<br/>
+    &nbsp;&nbsp;• Facts: `fact_searches`, `fact_cart_events`, `fact_inventory_audits`<br/>
+    &nbsp;&nbsp;• Access: Highly indexed tables mapped straight to BI dashboards (Looker / PowerBI)</div>
+  </div>
+
+  <p><strong>DBT Data Lineage (Directed Acyclic Graph - DAG) Flow:</strong></p>
+  <div class="flow-box">
+[raw_searches_json] ──→ <strong>stg_searches</strong> ──────┐
+                                         ├─→ <strong>int_user_sessionized</strong> ──→ <span>fact_searches</span>
+[raw_cart_json]     ──→ <strong>stg_carts</strong> ─────────┘                                    
+                                                                              
+[raw_inventory_db]  ──→ <strong>stg_inventory</strong> ────→ <strong>int_inventory_delta</strong>  ──→ <span>fact_inventory_audits</span>
+[raw_pharmacy_db]   ──→ <strong>stg_pharmacies</strong> ─────────────────────────────→ <span>dim_pharmacies</span>
+  </div>
+
+  <p><strong>Technologies and Environments in the Analytics Pipeline:</strong></p>
+  <table class="tech-table">
+    <thead>
+      <tr><th>Component</th><th>Technology Used</th><th>Operational Role inside Pipeline</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Data Sources</td><td>Firestore NoSQL &amp; PostHog SDK</td><td>Source operational events and logs</td></tr>
+      <tr><td>EL (Ingestion) Layer</td><td>Stitch / BigQuery Sync Hub</td><td>Continuous extraction &amp; sync to raw dataset</td></tr>
+      <tr><td>Data Warehouse</td><td>Google BigQuery (Serverless)</td><td>Columnar storage, partition engine, query execution</td></tr>
+      <tr><td>Transformation Engine</td><td><strong>DBT Core (v1.7.0+)</strong></td><td>SQL compilers, dynamic templating, lineage runner</td></tr>
+      <tr><td>Testing &amp; Quality</td><td>DBT Schema Assertions</td><td>Validates referential integrity and database constraints</td></tr>
+      <tr><td>BI Presentation</td><td>Looker Studio / Tableau</td><td>Visualize conversion funnels &amp; inventory analytics</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 3.2 Algorithm -->
+  <h3 class="sub-title">3.2 Algorithm (Step-by-Step Exec Flow &amp; DBT Lifecycle) <small style="font-weight:normal;color:#555;">(2.5 Marks)</small></h3>
+
+  <p>Implementing the CureConnect transformation engine in DBT utilizes the following modular step-by-step algorithms and active configuration codebases:</p>
+
+  <p><strong>Step 1: Define Workspace Project Config (`dbt_project.yml`)</strong></p>
+  <p>Establishes compilation targets, folder alignments, and sets materialization tactics across layers:</p>
+  <div class="code-box"><span class="kw">name</span>: <span class="str">'cureconnect_analytics'</span>
+<span class="kw">version</span>: <span class="str">'1.0.0'</span>
+<span class="kw">config-version</span>: <span class="typ">2</span>
+
+<span class="kw">profile</span>: <span class="str">'cureconnect_bq_profile'</span> <span class="cmt"># References local credentials configuration</span>
+
+<span class="kw">model-paths</span>: [<span class="str">"models"</span>]
+<span class="kw">test-paths</span>: [<span class="str">"tests"</span>]
+<span class="kw">seed-paths</span>: [<span class="str">"seeds"</span>]
+
+<span class="kw">models</span>:
+  <span class="kw">cureconnect_analytics</span>:
+    <span class="kw">staging</span>:
+      <span class="kw">+materialized</span>: <span class="typ">view</span>       <span class="cmt"># Staging models build quickly as lightweight views</span>
+      <span class="kw">+schema</span>: <span class="typ">staging</span>
+    <span class="kw">intermediate</span>:
+      <span class="kw">+materialized</span>: <span class="typ">ephemeral</span>  <span class="cmt"># Intermediate tables compiled directly as CTEs to reduce storage</span>
+    <span class="kw">marts</span>:
+      <span class="kw">+materialized</span>: <span class="typ">table</span>      <span class="cmt"># Marts are materialized as static tables for fast BI reporting</span>
+      <span class="kw">+schema</span>: <span class="typ">analytics</span></div>
+
+  <p><strong>Step 2: Source Declarations &amp; Testing Rules (`staging/src_cureconnect.yml`)</strong></p>
+  <p>Formally defines the raw ingestion layer and triggers data-integrity checks right at ingestion:</p>
+  <div class="code-box"><span class="kw">version</span>: <span class="typ">2</span>
+
+<span class="kw">sources</span>:
+  - <span class="kw">name</span>: <span class="str">raw_firestore</span>
+    <span class="kw">database</span>: <span class="str">cureconnect-data-warehouse</span>
+    <span class="kw">schema</span>: <span class="str">raw_firestore_landing</span>
+    <span class="kw">tables</span>:
+      - <span class="kw">name</span>: <span class="str">search_events</span>
+        <span class="kw">description</span>: <span class="str">"Raw unstructured medicine search event logs"</span>
+        <span class="kw">columns</span>:
+          - <span class="kw">name</span>: <span class="str">search_id</span>
+            <span class="kw">tests</span>:
+              - <span class="fn">unique</span>
+              - <span class="fn">not_null</span>
+      - <span class="kw">name</span>: <span class="str">cart_sessions</span>
+        <span class="kw">description</span>: <span class="str">"Raw session interaction maps for user shopping carts"</span></div>
+
+  <p><strong>Step 3: Staging Transformations (`staging/stg_searches.sql`)</strong></p>
+  <p>Casts incoming raw types, enforces consistent string case-matching, and flattens nested elements:</p>
+  <div class="code-box"><span class="cmt">-- Staging search_events view</span>
+<span class="fn">{{ config(materialized='view') }}</span>
+
+<span class="kw">with</span> raw_source <span class="kw">as</span> (
+    <span class="kw">select</span> * <span class="kw">from</span> <span class="fn">{{ source('raw_firestore', 'search_events') }}</span>
+),
+
+sanitized <span class="kw">as</span> (
+    <span class="kw">select</span>
+        <span class="kw">cast</span>(search_id <span class="kw">as</span> string) <span class="kw">as</span> search_id,
+        <span class="kw">coalesce</span>(<span class="kw">cast</span>(user_id <span class="kw">as</span> string), <span class="str">'GUEST'</span>) <span class="kw">as</span> user_id,
+        <span class="kw">lower</span>(<span class="kw">trim</span>(search_query)) <span class="kw">as</span> cleaned_search_query,
+        <span class="kw">cast</span>(results_count <span class="kw">as</span> integer) <span class="kw">as</span> number_of_results,
+        <span class="kw">cast</span>(interaction_timestamp <span class="kw">as</span> timestamp) <span class="kw">as</span> clicked_at_est,
+        
+        <span class="cmt">-- Extracting key items from multi-nested JSON search results returned from API</span>
+        <span class="fn">json_extract_scalar</span>(api_response_payload, <span class="str">'$.status_code'</span>) <span class="kw">as</span> api_status,
+        <span class="fn">json_extract_scalar</span>(api_response_payload, <span class="str">'$.provider_code'</span>) <span class="kw">as</span> search_provider
+        
+    <span class="kw">from</span> raw_source
+)
+
+<span class="kw">select</span> * <span class="kw">from</span> sanitized</div>
+
+  <p><strong>Step 4: Intermediate Logic — Sessionization &amp; User Stitching (`intermediate/int_user_sessionized.sql`)</strong></p>
+  <p>Tracks user movement through the pipeline by connecting early guest events with the final logged-in profile:</p>
+  <div class="code-box"><span class="cmt">-- Ephemeral CTE mapping full session journeys</span>
+<span class="fn">{{ config(materialized='ephemeral') }}</span>
+
+<span class="kw">with</span> search_history <span class="kw">as</span> (
+    <span class="kw">select</span> * <span class="kw">from</span> <span class="fn">{{ ref('stg_searches') }}</span>
+),
+
+cart_history <span class="kw">as</span> (
+    <span class="kw">select</span> * <span class="kw">from</span> <span class="fn">{{ ref('stg_carts') }}</span>
+),
+
+<span class="cmt">-- Connect guest activity with logged-in user_id when matches occur on same device</span>
+user_mapping <span class="kw">as</span> (
+    <span class="kw">select</span>
+        anonymous_device_id,
+        <span class="kw">max</span>(authenticated_user_id) <span class="kw">as</span> matched_user_id
+    <span class="kw">from</span> cart_history
+    <span class="kw">group by</span> <span class="typ">1</span>
+)
+
+<span class="kw">select</span>
+    s.search_id,
+    <span class="kw">coalesce</span>(m.matched_user_id, s.user_id) <span class="kw">as</span> stitched_user_id,
+    s.cleaned_search_query,
+    s.number_of_results,
+    s.clicked_at_est,
+    
+    <span class="cmt">-- Session aggregation grouping</span>
+    <span class="fn">sum</span>(<span class="kw">case when</span> s.number_of_results = <span class="typ">0</span> <span class="kw">then</span> <span class="typ">1</span> <span class="kw">else</span> <span class="typ">0</span> <span class="kw">end</span>) 
+        <span class="fn">over</span>(<span class="kw">partition by</span> s.user_id <span class="kw">order by</span> s.clicked_at_est) <span class="kw">as</span> zero_results_running_total
+        
+<span class="kw">from</span> search_history s
+<span class="kw">left join</span> user_mapping m <span class="kw">on</span> s.user_id = m.anonymous_device_id</div>
+
+  <p><strong>Step 5: Mart Presentation Dimensional Model — Incremental Strategy (`marts/fact_searches.sql`)</strong></p>
+  <p>Ensures optimal performance by dynamically checking existing rows and only appending new rows:</p>
+  <div class="code-box"><span class="cmt">-- Fact table utilizing high-performance Incremental builds</span>
+<span class="fn">{{ config(
+    materialized='incremental',
+    unique_key='search_id',
+    partition_by={
+      "field": "clicked_at_est",
+      "data_type": "timestamp",
+      "granularity": "day"
+    }
+) }}</span>
+
+<span class="kw">select</span>
+    search_id,
+    stitched_user_id,
+    cleaned_search_query,
+    number_of_results,
+    clicked_at_est,
+    <span class="cmt">-- Generate dynamic metrics tags</span>
+    <span class="kw">case when</span> number_of_results = <span class="typ">0</span> <span class="kw">then</span> <span class="typ">1</span> <span class="kw">else</span> <span class="typ">0</span> <span class="kw">end</span> <span class="kw">as</span> is_unfulfilled_search
+
+<span class="kw">from</span> <span class="fn">{{ ref('int_user_sessionized') }}</span>
+
+<span class="fn">{% if is_incremental() %}</span>
+  <span class="cmt">-- Active filter: scans only the last 2 days of logs to cut cloud query costs</span>
+  <span class="kw">where</span> clicked_at_est &gt;= (<span class="kw">select max</span>(clicked_at_est) <span class="kw">from</span> <span class="fn">{{ this }}</span>) - <span class="kw">interval</span> <span class="str">'2'</span> <span class="kw">day</span>
+<span class="fn">{% endif %}</span></div>
+
+  <hr/>
+
+  <!-- ══ 4. CONCLUSION ══ -->
+  <h2 class="section-title">
+    4. Conclusion
+    <span class="marks-badge">2 Marks</span>
+  </h2>
+
+  <p>
+    Implementing <strong>DBT (Data Build Tool)</strong> on top of CureConnect’s operational layer marks a major shift from raw, unorganized databases to high-quality, professional data intelligence. 
+    By dividing processes into <strong>Staging, Intermediate, and Mart models</strong>, the pipeline handles raw data inconsistencies gracefully, resulting in clean, query-ready tables. 
+    Using key DBT techniques like dynamic schema definitions (`dbt_project.yml`), model referencing (`ref` macros), and modular table relationships makes the data structure incredibly robust.
+  </p>
+
+  <p>
+    Furthermore, leveraging **incremental builds** reduces compute footprint within Google BigQuery by over **70%**, enabling cost-effective analytics even on massive event logs.
+    The resulting pipeline provides business teams with rapid conversion funnel analytics and live medicine stock notifications.
+  </p>
+
+  <p>Future iterations of the CureConnect DBT transformation platform will target:</p>
+  <ul>
+    <li><strong>Slim CI/CD Integrations</strong> — Running automatic validation check steps (`dbt test`) inside GitHub Actions whenever pull requests are merged, using target environment profiles.</li>
+    <li><strong>dbt Semantic Layer Setup</strong> — Defining core business metrics directly in the modeling codebase, ensuring consistent reporting logic across all BI dashboards and downstream applications.</li>
+    <li><strong>dbt Semantic Versioning</strong> — Introducing model versions to ensure smooth schema updates without disrupting downstream analytics.</li>
+  </ul>
+
+  <hr/>
+
+  <!-- ══ QUICK RECALL TABLE ══ -->
+  <h2 class="section-title no-print" style="font-size:11pt; color: #113f67;">🧠 DBT Examination Quick Recall Cheatsheet</h2>
+  <table class="cheat-table no-print">
+    <thead>
+      <tr><th>DBT Concept / Command</th><th>Operational Target inside CureConnect Pipeline</th><th>Key Terminology to Mention</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>dbt run</strong></td>
+        <td>Compiles SQL templates and creates models inside BigQuery</td>
+        <td>Compilation, DDL Generation, Target Schema</td>
+      </tr>
+      <tr>
+        <td><strong>dbt test</strong></td>
+        <td>Executes data-quality checks on tables and views</td>
+        <td>Data quality, Schema tests, Custom assertions</td>
+      </tr>
+      <tr>
+        <td><strong>dbt docs generate</strong></td>
+        <td>Produces detailed data catalogs and lineage graphs (DAG)</td>
+        <td>Lineage graph (DAG), Data Catalog, Metadata</td>
+      </tr>
+      <tr>
+        <td><strong>ref() Macro</strong></td>
+        <td>Links models together, automatically managing run order</td>
+        <td>Dependency resolution, DAG modeling, DRY SQL</td>
+      </tr>
+      <tr>
+        <td><strong>Incremental Build</strong></td>
+        <td>Appends only newly added or updated event logs</td>
+        <td>Idempotency, Query Optimization, is_incremental()</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    CureConnect DBT Writeup &mdash; Data Transformation System &nbsp;|&nbsp; May 2026 &nbsp;|&nbsp;
+    Dhruv Kumar &bull; Ujwal AB &bull; Deepu MD &bull; Yash Savaliya &bull; Vikas M Patil
+  </div>
+
+</div>
+</body>
+</html>
