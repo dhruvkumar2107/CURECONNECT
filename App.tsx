@@ -15,6 +15,7 @@ import { RemindersPage } from './pages/RemindersPage';
 import { PartnerSignUpPage } from './pages/PartnerSignUpPage';
 import { TeleconsultationPage } from './pages/TeleconsultationPage';
 import { TourGuide } from './components/TourGuide';
+import { DatabaseExplorer } from './components/DatabaseExplorer';
 import { HeartPulse, Github, Shield, Zap, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -75,6 +76,7 @@ const App = () => {
           <div className="relative z-10 flex flex-col flex-1">
             <Header />
             <TourGuide />
+            <DatabaseExplorer />
 
             <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <Routes>

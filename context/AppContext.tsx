@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Coordinate, CartItem, User } from '../types';
 import { auth, db, onAuthStateChanged, signOut as firebaseSignOut } from '../services/firebase';
 import { doc, setDoc, onSnapshot, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { saveCartEvent } from '../services/dbService';
 
 interface AppContextType {
   userLocation: Coordinate | null;
@@ -99,11 +100,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIsLoadingAuth(false);
       } else {
         setUser(null);
-        setCart([]); // Clear cart on logout
         setIsLoadingAuth(false);
-        if (unsubscribeSnapshot) {
-          unsubscribeSnapshot();
+
+        // Subscribe to real-time Guest Cart in Firestore
+        let gid = localStorage.getItem('cureconnect_guest_id');
+        if (!gid) {
+          gid = `guest-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          localStorage.setItem('cureconnect_guest_id', gid);
         }
+
+        const guestDocRef = doc(db, 'guest_carts', gid);
+        unsubscribeSnapshot = onSnapshot(guestDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.cart) {
+              setCart(data.cart);
+            }
+          } else {
+            setCart([]);
+          }
+        }, (error) => {
+          console.error("Guest Cart Subscription Error:", error);
+        });
       }
     });
 
@@ -135,12 +153,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error updating cart in Firestore", e);
       }
     } else {
-      // If guest, just update local state
+      // If guest, update local state and sync to Firestore
       setCart(newCart);
+      try {
+        let gid = localStorage.getItem('cureconnect_guest_id');
+        if (!gid) {
+          gid = `guest-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          localStorage.setItem('cureconnect_guest_id', gid);
+        }
+        await setDoc(doc(db, 'guest_carts', gid), { cart: newCart, updatedAt: new Date().toISOString() });
+      } catch (e) {
+        console.error("Error updating guest cart in Firestore", e);
+      }
     }
+
+    // Log the addition event in cart_events collection
+    saveCartEvent('add', {
+      id: item.id,
+      name: item.name,
+      pharmacyId: item.pharmacyId,
+      price: item.price,
+      quantity: item.quantity
+    }, user?.id || localStorage.getItem('cureconnect_guest_id') || 'guest').catch(console.error);
   };
 
   const removeFromCart = async (medicineId: string, pharmacyId: string) => {
+    const itemToRemove = cart.find(i => i.id === medicineId && i.pharmacyId === pharmacyId);
     const newCart = cart.filter(i => !(i.id === medicineId && i.pharmacyId === pharmacyId));
 
     if (user) {
@@ -151,10 +189,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       setCart(newCart);
+      try {
+        const gid = localStorage.getItem('cureconnect_guest_id');
+        if (gid) {
+          await setDoc(doc(db, 'guest_carts', gid), { cart: newCart, updatedAt: new Date().toISOString() });
+        }
+      } catch (e) {
+        console.error("Error updating guest cart in Firestore", e);
+      }
+    }
+
+    if (itemToRemove) {
+      saveCartEvent('remove', {
+        id: itemToRemove.id,
+        name: itemToRemove.name,
+        pharmacyId: itemToRemove.pharmacyId,
+        price: itemToRemove.price,
+        quantity: itemToRemove.quantity
+      }, user?.id || localStorage.getItem('cureconnect_guest_id') || 'guest').catch(console.error);
     }
   };
 
   const clearCart = async () => {
+    const oldCart = [...cart];
     if (user) {
       try {
         await setDoc(doc(db, 'users', user.id), { cart: [] }, { merge: true });
@@ -163,6 +220,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       setCart([]);
+      try {
+        const gid = localStorage.getItem('cureconnect_guest_id');
+        if (gid) {
+          await setDoc(doc(db, 'guest_carts', gid), { cart: [], updatedAt: new Date().toISOString() });
+        }
+      } catch (e) {
+        console.error("Error updating guest cart in Firestore", e);
+      }
+    }
+
+    for (const item of oldCart) {
+      saveCartEvent('clear', {
+        id: item.id,
+        name: item.name,
+        pharmacyId: item.pharmacyId,
+        price: item.price,
+        quantity: item.quantity
+      }, user?.id || localStorage.getItem('cureconnect_guest_id') || 'guest').catch(console.error);
     }
   };
 

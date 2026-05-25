@@ -206,3 +206,36 @@ export const addFeedback = async (rating: number, comment: string) => {
         throw error;
     }
 };
+
+export const saveCartEvent = async (
+    action: 'add' | 'remove' | 'clear',
+    item: {
+        id: string;
+        name: string;
+        pharmacyId: string;
+        price: number;
+        quantity: number;
+    },
+    userId?: string
+) => {
+    try {
+        const eventId = `cart-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        const eventRef = doc(db, 'cart_events', eventId);
+        await setDoc(eventRef, {
+            eventId,
+            action,
+            medicineId: item.id,
+            medicineName: item.name,
+            pharmacyId: item.pharmacyId,
+            price: item.price,
+            quantity: item.quantity,
+            userId: userId || 'anonymous_guest',
+            timestamp: serverTimestamp(),
+            createdAt: new Date().toISOString()
+        });
+        console.log(`🛒 [CartLog] Logged ${action} action for medicine "${item.name}"`);
+    } catch (error) {
+        console.error("Error logging cart event:", error);
+    }
+};
+

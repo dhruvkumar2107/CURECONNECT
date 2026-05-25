@@ -3,7 +3,7 @@ import { Search, MapPin, ArrowUpDown, Sparkles, TrendingUp, Shield, Clock, Zap, 
 import { useApp } from '../context/AppContext';
 import { SearchResult } from '../types';
 import { PharmacyCard } from '../components/PharmacyCard';
-import { searchMedicinesSubscription, saveExternalResults } from '../services/dbService';
+import { searchMedicinesSubscription, saveExternalResults, saveSearchQuery } from '../services/dbService';
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { analytics } from '../services/posthog';
@@ -42,7 +42,7 @@ const FEATURE_CARDS = [
 ];
 
 export const HomePage = () => {
-  const { userLocation, locationError, isLoadingLocation, addToCart } = useApp();
+  const { userLocation, locationError, isLoadingLocation, addToCart, user } = useApp();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -97,8 +97,9 @@ export const HomePage = () => {
     setHasSearched(true);
     analytics.searchPerformed(searchQuery, 0, !!filter);
 
+    let myUpcharResults: any[] = [];
     try {
-      const myUpcharResults = await searchMedicinesFromMyUpchar(searchQuery);
+      myUpcharResults = await searchMedicinesFromMyUpchar(searchQuery);
       setApiResults(myUpcharResults);
       if (myUpcharResults.length > 0) {
         saveExternalResults(myUpcharResults).catch(console.error);
@@ -107,6 +108,9 @@ export const HomePage = () => {
       console.error('API Search failed:', error);
     } finally {
       setIsSearching(false);
+      // Log search query in queries collection for data engineering analytics
+      const totalCount = dbResults.length + myUpcharResults.length;
+      saveSearchQuery(searchQuery, user?.id || localStorage.getItem('cureconnect_guest_id') || 'anonymous_guest', totalCount).catch(console.error);
     }
   };
 
