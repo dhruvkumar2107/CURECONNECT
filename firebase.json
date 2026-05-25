@@ -3,6 +3,7 @@
         "rules": "firestore.rules"
     },
     "hosting": {
+        "site": "cureconnect-95fb6",
         "public": "dist",
         "ignore": [
             "firebase.json",
