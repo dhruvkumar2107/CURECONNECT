@@ -194,6 +194,11 @@ export const track = (eventName: string, options: TrackOptions = {}): void => {
       is_demo: !!options.isDemo,
     };
 
+    // Firestore rejects undefined values — strip any missing fields before write.
+    (Object.keys(event) as (keyof AnalyticsEvent)[]).forEach((k) => {
+      if (event[k] === undefined) delete event[k];
+    });
+
     // Fire-and-forget write. Analytics must never block the user journey.
     setDoc(doc(collection(db, 'analytics_events'), event.event_id), event).catch((err) => {
       console.warn('[Analytics] Failed to persist event:', eventName, err?.message || err);

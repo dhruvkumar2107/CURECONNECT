@@ -174,15 +174,15 @@ export const AnalyticsDashboardPage: React.FC = () => {
   const realCount = useMemo(() => events.filter((e) => !e.is_demo).length, [events]);
   const demoCount = useMemo(() => events.filter((e) => e.is_demo).length, [events]);
 
-  if (!access) return <AccessGate user={user} code={codeInput} setCode={setCodeInput} error={codeError} onSubmit={grantAccess} />;
-
-  const exportProps: ExportTabProps = { ctx, patterns, funnels, segments, insights, realCount, demoCount, demoStatus, seeding, clearing, onSeedDemo: handleSeedDemo, onClearDemo: handleClearDemo };
-
   const filterOptions = useMemo(() => {
     const citySet = new Set<string>(['Bangalore']);
     events.forEach((e) => { if (e.city) citySet.add(e.city); });
     return { cities: Array.from(citySet) };
   }, [events]);
+
+  if (!access) return <AccessGate user={user} code={codeInput} setCode={setCodeInput} error={codeError} onSubmit={grantAccess} />;
+
+  const exportProps: ExportTabProps = { ctx, patterns, funnels, segments, insights, realCount, demoCount, demoStatus, seeding, clearing, onSeedDemo: handleSeedDemo, onClearDemo: handleClearDemo };
 
   return (
     <div className="relative min-h-screen animated-gradient overflow-hidden p-4 sm:p-6 lg:p-8">
