@@ -19,6 +19,8 @@ import { TourGuide } from './components/TourGuide';
 import { DatabaseExplorer } from './components/DatabaseExplorer';
 import { HeartPulse, Github, Shield, Zap, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { RouteTracker } from './components/RouteTracker';
+import { AnalyticsDashboardPage } from './pages/AnalyticsDashboardPage';
 
 const App = () => {
   useEffect(() => {
@@ -28,6 +30,7 @@ const App = () => {
   return (
     <AppProvider>
       <HashRouter>
+        <RouteTracker />
         <div className="min-h-screen flex flex-col" style={{ background: '#04091a' }}>
 
           {/* ── Premium Ambient Background ── */}
@@ -89,6 +92,7 @@ const App = () => {
                 <Route path="/partner-signup"         element={<PartnerSignUpPage />} />
                 <Route path="/reminders"              element={<RemindersPage />} />
                 <Route path="/teleconsult"            element={<TeleconsultationPage />} />
+                <Route path="/admin/analytics"        element={<AnalyticsDashboardPage />} />
                 <Route path="/dbt-demo"               element={<DbtDemoPage />} />
                 <Route path="/login"                  element={<LoginPage />} />
                 <Route path="/signup"                 element={<SignUpPage />} />

@@ -3,6 +3,7 @@ import { Coordinate, CartItem, User } from '../types';
 import { auth, db, onAuthStateChanged, signOut as firebaseSignOut } from '../services/firebase';
 import { doc, setDoc, onSnapshot, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { saveCartEvent } from '../services/dbService';
+import { identifyAnalyticsUser } from '../services/analyticsService';
 
 interface AppContextType {
   userLocation: Coordinate | null;
@@ -61,6 +62,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        identifyAnalyticsUser(firebaseUser.uid);
         // Setup Firestore listener for this user's data (cart + points)
         const userDocRef = doc(db, 'users', firebaseUser.uid);
 
@@ -99,6 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         setIsLoadingAuth(false);
       } else {
+        identifyAnalyticsUser(null);
         setUser(null);
         setIsLoadingAuth(false);
 

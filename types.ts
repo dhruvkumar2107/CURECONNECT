@@ -52,8 +52,51 @@ export interface User {
   name: string;
   email: string;
   points: number;
-  role: 'user' | 'partner';
+  role: 'user' | 'partner' | 'admin';
   hasSeenTour?: boolean;
+}
+
+// ─── Product Analytics (MSE-1) ──────────────────────────────────────────────
+
+export interface AnalyticsEvent {
+  event_id: string;
+  user_id: string;
+  anonymous_id?: string;
+  session_id: string;
+  event_name: string;
+  timestamp?: any; // Firestore serverTimestamp
+  created_at: string; // ISO client timestamp
+  local_hour?: number;
+  day_of_week?: number;
+  page: string;
+  device_type: string;
+  browser: string;
+  os?: string;
+  city?: string;
+  source?: string;
+  referrer?: string;
+  category?: string;
+  search_query?: string;
+  result_count?: number;
+  doctor_id?: string;
+  pharmacy_id?: string;
+  medicine_id?: string;
+  appointment_id?: string;
+  metadata?: Record<string, any>;
+  is_demo?: boolean;
+}
+
+export interface Appointment {
+  id: string;
+  userId: string;
+  userName: string;
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  slot: string;
+  date: string;
+  status: 'confirmed' | 'completed' | 'cancelled' | 'rescheduled';
+  createdAt: string;
 }
 
 export interface SearchResult {

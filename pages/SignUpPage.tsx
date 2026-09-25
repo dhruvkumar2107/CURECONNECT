@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword, updateProfile, auth, db } from '../serv
 import { doc, setDoc } from 'firebase/firestore';
 import { HeartPulse, Lock, Mail, User, AlertCircle, ArrowRight, CheckCircle } from 'lucide-react';
 import { analytics } from '../services/posthog';
+import { analytics as analyticsSvc } from '../services/analyticsService';
 
 const PERKS = [
   'Reserve medicines at 20+ pharmacies',
@@ -37,6 +38,7 @@ export const SignUpPage = () => {
         hasSeenTour: false, createdAt: new Date().toISOString()
       });
       analytics.userSignedUp(user.uid, name, email);
+      analyticsSvc.accountCreated(user.uid, email);
       navigate('/');
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') setError('This email is already registered. Try signing in.');

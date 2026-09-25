@@ -7,6 +7,7 @@ import { searchMedicinesSubscription, saveExternalResults, saveSearchQuery } fro
 import { searchMedicinesFromMyUpchar } from '../services/myUpcharService';
 import { FeedbackSection } from '../components/FeedbackSection';
 import { analytics } from '../services/posthog';
+import { track, EVENTS } from '../services/analyticsService';
 
 const QUICK_SEARCHES = ['Dolo 650', 'Paracetamol', 'Insulin', 'Azithromycin', 'Omez'];
 
@@ -57,6 +58,8 @@ export const HomePage = () => {
     analytics.page('Home — Medicine Search');
   }, []);
 
+  const prevResultCount = React.useRef(0);
+
   useEffect(() => {
     if (!query.trim() || query.length < 3) {
       setDbResults([]);
@@ -82,8 +85,15 @@ export const HomePage = () => {
 
     if (hasSearched && allResults.length > 0) {
       analytics.searchResultsShown(query, dbResults.length, apiResults.length, allResults.length);
+      if (prevResultCount.current === 0) {
+        track(EVENTS.AVAILABILITY_CHECK, { page: '/', searchQuery: query, resultCount: allResults.length });
+      }
+      prevResultCount.current = allResults.length;
     } else if (hasSearched && query.length >= 3 && !isSearching) {
       analytics.searchEmpty(query);
+      if (prevResultCount.current === 0) {
+        track(EVENTS.MEDICINE_UNAVAILABLE, { page: '/', searchQuery: query });
+      }
     }
   }, [dbResults, apiResults, sortByPrice]);
 
@@ -110,17 +120,20 @@ export const HomePage = () => {
       setIsSearching(false);
       // Log search query in queries collection for data engineering analytics
       const totalCount = dbResults.length + myUpcharResults.length;
+      track(EVENTS.MEDICINE_SEARCH, { page: '/', searchQuery, resultCount: totalCount });
       saveSearchQuery(searchQuery, user?.id || localStorage.getItem('cureconnect_guest_id') || 'anonymous_guest', totalCount).catch(console.error);
     }
   };
 
   const handleFilterChange = (newFilter: 'Hub' | 'Local Store' | undefined) => {
     analytics.filterApplied('pharmacy_type', newFilter);
+    track(EVENTS.FILTER_APPLIED, { page: '/', metadata: { filter_type: 'pharmacy_type', value: newFilter || 'all' } });
     setFilter(newFilter);
   };
 
   const handleSortToggle = () => {
     analytics.sortApplied('price_asc', !sortByPrice);
+    track(EVENTS.FILTER_APPLIED, { page: '/', metadata: { filter_type: 'sort', value: 'price_asc', enabled: !sortByPrice } });
     setSortByPrice(!sortByPrice);
   };
 
@@ -346,6 +359,9 @@ export const HomePage = () => {
               data={result}
               onAddToCart={() => {
                 analytics.addToCart(result.medicine.name, result.pharmacy.id, result.pharmacy.name, result.medicine.price, 1);
+                track(EVENTS.MEDICINE_VIEW, { page: '/', searchQuery: query, medicineId: result.medicine.id, pharmacyId: result.pharmacy.id });
+                track(EVENTS.MEDICINE_AVAILABLE, { page: '/', searchQuery: query, medicineId: result.medicine.id, pharmacyId: result.pharmacy.id });
+                track(EVENTS.PHARMACY_SELECTED, { page: '/', searchQuery: query, medicineId: result.medicine.id, pharmacyId: result.pharmacy.id });
                 addToCart({ ...result.medicine, quantity: 1, pharmacyId: result.pharmacy.id });
                 const btn = document.getElementById('cart-link');
                 btn?.animate([{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 300 });

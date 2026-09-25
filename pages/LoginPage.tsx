@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, auth } from '../services/firebase';
 import { HeartPulse, Lock, Mail, AlertCircle, ArrowRight, Pill, ShieldCheck, Zap } from 'lucide-react';
 import { analytics } from '../services/posthog';
+import { analytics as analyticsSvc } from '../services/analyticsService';
 
 const FEATURES = [
   { icon: <Zap size={15} className="text-teal-400" />,        text: 'Real-time stock across 20+ pharmacies' },
@@ -26,6 +27,7 @@ export const LoginPage = () => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       analytics.userLoggedIn(cred.user.uid, email, 'user');
+      analyticsSvc.loggedIn(cred.user.uid, 'user');
       navigate('/');
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {

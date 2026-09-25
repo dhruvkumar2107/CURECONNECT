@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ShoppingCart, HeartPulse, LogOut, FileText, AlertTriangle,
-  Store, Star, Clock, Video, Menu, X, Zap,
+  Store, Star, Clock, Video, Menu, X, Zap, BarChart3,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { analytics } from '../services/posthog';
+import { analytics as analyticsSvc } from '../services/analyticsService';
 
 export const Header = () => {
   const { cart, user, logout } = useApp();
@@ -24,6 +25,7 @@ export const Header = () => {
 
   const handleLogout = () => {
     analytics.userLoggedOut();
+    analyticsSvc.loggedOut();
     logout();
   };
 
@@ -102,6 +104,9 @@ export const Header = () => {
               <NavLink to="/teleconsult"          icon={<Video size={14} />}     label="Consult"    id="teleconsult-link" />
               <NavLink to="/reminders"            icon={<Clock size={14} />}     label="Reminders" />
               <NavLink to="/dbt-demo"             icon={<Zap size={14} className="text-amber-400" />} label="DBT Analytics" />
+              {user?.role === 'admin' && (
+                <NavLink to="/admin/analytics" icon={<BarChart3 size={14} className="text-teal-400" />} label="Analytics" />
+              )}
 
               <div className="w-px h-4 bg-white/10 mx-3" />
 
@@ -246,6 +251,9 @@ export const Header = () => {
             <MobileNavLink to="/teleconsult"         icon={<Video size={17} />}          label="Teleconsultation"               onClick={() => setIsMenuOpen(false)} />
             <MobileNavLink to="/reminders"           icon={<Clock size={17} />}          label="Reminders"                      onClick={() => setIsMenuOpen(false)} />
             <MobileNavLink to="/dbt-demo"            icon={<Zap size={17} className="text-amber-400" />} label="DBT Analytics" onClick={() => setIsMenuOpen(false)} />
+            {user?.role === 'admin' && (
+              <MobileNavLink to="/admin/analytics" icon={<BarChart3 size={17} className="text-teal-400" />} label="Analytics" highlight onClick={() => setIsMenuOpen(false)} />
+            )}
 
             {user?.role === 'partner' ? (
               <MobileNavLink to="/partnership-dashboard" icon={<Store size={17} />} label="Partner Dashboard" highlight onClick={() => setIsMenuOpen(false)} />

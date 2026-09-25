@@ -1,7 +1,8 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { initializeApp, FirebaseApp } from "firebase/app";
+import { getFirestore, Firestore } from "firebase/firestore";
 import {
   getAuth,
+  Auth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -9,7 +10,7 @@ import {
   updateProfile
 } from "firebase/auth";
 
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, Analytics } from "firebase/analytics";
 
 console.log("firebase.ts: Imports successful");
 
@@ -23,10 +24,10 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-let app;
-let db;
-let auth;
-let analytics;
+let app: FirebaseApp;
+let db: Firestore;
+let auth: Auth;
+let analytics: Analytics | null = null;
 
 try {
   console.log("firebase.ts: Initializing app for project:", firebaseConfig.projectId);

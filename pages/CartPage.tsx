@@ -5,6 +5,7 @@ import { PHARMACIES } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { createOrder } from '../services/dbService';
 import { analytics } from '../services/posthog';
+import { track, EVENTS } from '../services/analyticsService';
 
 export const CartPage = () => {
   const { cart, removeFromCart, clearCart, user } = useApp();
@@ -23,6 +24,7 @@ export const CartPage = () => {
   useEffect(() => {
     if (cart.length > 0) {
       analytics.cartViewed(cart.length, total, Object.keys(groupedItems).length);
+      track(EVENTS.MEDICINE_ORDER_STARTED, { page: '/cart', metadata: { item_count: cart.length, pharmacy_count: Object.keys(groupedItems).length, total } });
     }
   }, []);
 
@@ -40,6 +42,13 @@ export const CartPage = () => {
         });
       }
       analytics.orderPlaced(Object.keys(groupedItems), cart.length, total, showSchedule ? pickupTime : undefined);
+      for (const [pharmacyId, items] of Object.entries(groupedItems) as [string, any[]][]) {
+        const pharmacyTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
+        track(EVENTS.MEDICINE_ORDER_COMPLETED, {
+          page: '/cart', pharmacyId,
+          metadata: { item_count: items.length, total: pharmacyTotal, pickup_time: showSchedule ? pickupTime : 'ASAP' },
+        });
+      }
       setCheckedOut(true);
       setTimeout(() => {
         clearCart();
@@ -178,6 +187,10 @@ export const CartPage = () => {
                       <button
                         onClick={() => {
                           analytics.itemRemovedFromCart(item.name, item.price);
+                          track(EVENTS.MEDICINE_ORDER_CANCELLED, {
+                            page: '/cart', medicineId: item.id, pharmacyId: item.pharmacyId,
+                            metadata: { stage: 'cart', quantity: item.quantity },
+                          });
                           removeFromCart(item.id, item.pharmacyId);
                         }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
