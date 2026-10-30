@@ -19,9 +19,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
     },
 
-        define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
+    // NOTE: never inject server secrets (e.g. GEMINI_API_KEY) via `define` — they would ship in the public bundle.
+    // Gemini is called only from server/ (see AI_LAB.md).
 
     optimizeDeps: {
       esbuildOptions: {

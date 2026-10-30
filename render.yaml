@@ -1,0 +1,25 @@
+# Render Blueprint for the CureConnect AI Vision service ONLY.
+# The existing CureConnect static site is not defined here and is not changed by this file.
+# See AI_LAB.md → "Deploy on Render".
+services:
+  - type: web
+    name: cureconnect-ai-lab
+    runtime: node
+    plan: free
+    # --include=dev: NODE_ENV=production would otherwise skip Vite, which the build needs.
+    buildCommand: npm ci --include=dev && npm run build:ai-lab
+    startCommand: npm run start:ai-lab
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AI_LAB_ACCESS_CODE
+        sync: false
+      - key: AI_LAB_SESSION_SECRET
+        generateValue: true
+      - key: AI_LAB_ALLOWED_ORIGINS
+        value: https://cureconnect-dckr.onrender.com

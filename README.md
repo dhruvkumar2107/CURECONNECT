@@ -44,6 +44,12 @@ Empowering pharmacies to manage their business.
 
 ---
 
+## 🤖 CureConnect AI Vision (private)
+
+An invitation-only Gemini-powered health-information mini-site served at `/ai-lab` by a small Node service in `server/`. It is intentionally not linked from the site navigation. See **[AI_LAB.md](AI_LAB.md)** for setup, deployment, security and costs.
+
+---
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
