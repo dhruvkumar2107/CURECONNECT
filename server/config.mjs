@@ -16,6 +16,9 @@ export function loadConfig(env = process.env) {
 
     geminiApiKey: (env.GEMINI_API_KEY || '').trim(),
     geminiModel: (env.GEMINI_MODEL || 'gemini-3.8-flash').trim(),
+    // Thinking level for chat and symptom summaries (LOW = fast first token; HIGH = model default).
+    // Report analysis always uses the model default for accuracy. Set to "" to disable the override.
+    thinkingLevel: (env.AI_LAB_THINKING_LEVEL ?? 'LOW').trim().toUpperCase(),
 
     // Access gate. Both must be set for anyone to get in.
     accessCode: env.AI_LAB_ACCESS_CODE || '',

@@ -399,6 +399,7 @@ export function createApp({ config, gemini, distDir, now = () => Date.now() }) {
           },
         ],
         maxOutputTokens: 4096,
+        fast: true,
         signal,
       });
       if (!summary || !Array.isArray(summary.reportedSymptoms)) {

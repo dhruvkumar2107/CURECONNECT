@@ -15,7 +15,11 @@ try {
 }
 
 const config = loadConfig();
-const gemini = createGeminiService({ apiKey: config.geminiApiKey, model: config.geminiModel });
+const gemini = createGeminiService({
+  apiKey: config.geminiApiKey,
+  model: config.geminiModel,
+  thinkingLevel: config.thinkingLevel,
+});
 const app = createApp({ config, gemini, distDir: path.join(root, 'dist-ai-lab') });
 
 if (!gemini.configured) console.warn('[ai-lab] GEMINI_API_KEY is not set — AI endpoints will return "not_configured".');

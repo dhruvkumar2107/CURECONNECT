@@ -47,7 +47,10 @@ function blockedError(response) {
   return null;
 }
 
-export function createGeminiService({ apiKey, model }) {
+export function createGeminiService({ apiKey, model, thinkingLevel }) {
+  // Gemini 3 models think before answering by default, which delays the first token by many
+  // seconds. A lower level keeps chat responsive. Empty = model default.
+  const thinkingConfig = thinkingLevel ? { thinkingLevel } : undefined;
   const client = apiKey ? new GoogleGenAI({ apiKey }) : null;
   let statusCache = { at: 0, value: null };
 
@@ -70,7 +73,7 @@ export function createGeminiService({ apiKey, model }) {
         const stream = await ai.models.generateContentStream({
           model,
           contents,
-          config: { systemInstruction, maxOutputTokens, temperature: 0.4, abortSignal: signal },
+          config: { systemInstruction, maxOutputTokens, temperature: 0.4, thinkingConfig, abortSignal: signal },
         });
         for await (const chunk of stream) {
           const blocked = blockedError(chunk);
@@ -86,7 +89,7 @@ export function createGeminiService({ apiKey, model }) {
     },
 
     /** Generates JSON constrained by a schema and returns the parsed object. */
-    async generateJson({ systemInstruction, contents, schema, maxOutputTokens = 8192, signal }) {
+    async generateJson({ systemInstruction, contents, schema, maxOutputTokens = 8192, fast = false, signal }) {
       const ai = requireClient();
       let response;
       try {
@@ -99,6 +102,7 @@ export function createGeminiService({ apiKey, model }) {
             temperature: 0.1,
             responseMimeType: 'application/json',
             responseJsonSchema: schema,
+            ...(fast && thinkingConfig ? { thinkingConfig } : {}),
             abortSignal: signal,
           },
         });
