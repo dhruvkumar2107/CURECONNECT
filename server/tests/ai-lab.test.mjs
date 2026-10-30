@@ -12,7 +12,7 @@ import { loadConfig } from '../config.mjs';
 import { validateUpload } from '../fileValidation.mjs';
 import { AiError, toAiError } from '../gemini.mjs';
 import { FOLLOWUP_MARKER } from '../prompts.mjs';
-import { computeRangeCheck, normaliseReport, parseRange } from '../reportAnalysis.mjs';
+import { PRESCRIPTION_LIMITATIONS, STANDARD_LIMITATIONS, computeRangeCheck, decodeDirections, normaliseReport, parseRange, standardLimitationsFor } from '../reportAnalysis.mjs';
 import { detectEmergency } from '../safety.mjs';
 
 const CODE = 'test-access-code-123';
@@ -151,6 +151,44 @@ describe('unit: validation and safety helpers', () => {
     });
     assert.equal(r.findings[0].serverRangeCheck, 'below');
     assert.equal(r.findings[0].checksDisagree, true);
+  });
+
+  test('prescription shorthand is decoded deterministically', () => {
+    const meanings = (t) => decodeDirections(t).map((d) => d.meaning);
+    assert.deepEqual(meanings('1-0-1 x 5 days AC'), ['1 morning · 0 afternoon · 1 night', 'Before food', 'For 5 days']);
+    assert.deepEqual(meanings('½ - 0 - ½ PC 5/7'), ['½ morning · 0 afternoon · ½ night', 'After food', 'For 5 days']);
+    assert.deepEqual(meanings('1-1-1-1 x2wk'), ['1 morning · 1 afternoon · 1 evening · 1 night', 'For 2 weeks']);
+    assert.deepEqual(meanings('BD x 10d'), ['Twice a day', 'For 10 days']);
+    assert.deepEqual(meanings('TDS'), ['Three times a day']);
+    assert.deepEqual(meanings('SOS'), ['Only when needed']);
+    assert.deepEqual(meanings('HS 2/52'), ['At bedtime', 'For 2 weeks']);
+    // Dates and words containing abbreviations must not be decoded.
+    assert.deepEqual(meanings('12-05-2026'), []);
+    assert.deepEqual(meanings('12/7/2026'), []);
+    assert.deepEqual(meanings('Acetaminophen'), []);
+    assert.deepEqual(decodeDirections(''), []);
+  });
+
+  test('normaliseReport handles prescriptions safely', () => {
+    const r = normaliseReport({
+      isMedicalDocument: true,
+      documentType: 'lab_report',
+      medicines: [
+        { writtenAs: 'Tab Pan 40', medicineName: 'Pan 40', alternatives: ['Pan 40', 'Pantop 40'], strength: '40 mg', directionsAsWritten: '1-0-0 BBF x 15d', confidence: 'high' },
+        { writtenAs: 'T. Ar??', medicineName: '', confidence: 'high' },
+      ],
+      prescription: { advice: ['CBC after 1 week'], followUp: 'Review after 15 days' },
+    });
+    // Medicines present → treated as a prescription even if the model mislabelled it.
+    assert.equal(r.documentType, 'prescription');
+    assert.deepEqual(r.medicines[0].alternatives, ['Pantop 40']);
+    assert.deepEqual(r.medicines[0].decoded.map((d) => d.meaning), ['1 morning · 0 afternoon · 0 night', 'Before breakfast', 'For 15 days']);
+    // An unreadable name can never be "high" confidence.
+    assert.equal(r.medicines[1].confidence, 'low');
+    assert.equal(r.prescription.followUp, 'Review after 15 days');
+    assert.equal(standardLimitationsFor(r), PRESCRIPTION_LIMITATIONS);
+    assert.equal(normaliseReport({ isMedicalDocument: false, medicines: [] }).documentType, 'not_medical');
+    assert.equal(standardLimitationsFor(normaliseReport({ documentType: 'lab_report' })), STANDARD_LIMITATIONS);
   });
 
   test('message validation', () => {
@@ -294,6 +332,10 @@ describe('integration: gate, API and Gemini wiring', () => {
     const part = gemini.calls.at(-1).args.contents[0].parts[0];
     assert.equal(part.inlineData.mimeType, 'application/pdf');
     assert.equal(Buffer.from(part.inlineData.data, 'base64').equals(PDF), true);
+    // Full resolution so handwriting is legible to the model.
+    assert.equal(gemini.calls.at(-1).args.mediaResolution, 'MEDIA_RESOLUTION_HIGH');
+    assert.equal(body.analysis.documentType, 'other_medical');
+    assert.deepEqual(body.analysis.medicines, []);
   });
 
   test('report analysis rejects disguised, unsupported and oversized files', async () => {

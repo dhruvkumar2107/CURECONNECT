@@ -281,6 +281,31 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .terms div { padding: 10px 12px; border-radius: 12px; background: rgba(148, 163, 184, 0.05); border: 1px solid var(--line); }
 .terms dt { font-weight: 700; color: #fff; }
 .terms dd { margin: 2px 0 0; color: var(--text-2); font-size: 14px; }
+
+/* Prescription medicines */
+.med-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.med-card { padding: 12px 14px; border-radius: 14px; background: rgba(148, 163, 184, 0.05); border: 1px solid var(--line); border-left: 3px solid var(--ok); }
+.med-card.med-medium { border-left-color: var(--warn); }
+.med-card.med-low { border-left-color: var(--danger); background: rgba(248, 113, 113, 0.05); }
+.med-head { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.med-num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--teal); background: rgba(45, 212, 191, 0.1); border: 1px solid rgba(45, 212, 191, 0.3); }
+.med-title { flex: 1; min-width: 160px; display: flex; flex-direction: column; }
+.med-title b { color: #fff; font-size: 15.5px; }
+.med-title .muted { font-size: 13px; }
+.med-head .chip { margin-left: 0; }
+.med-written, .med-alt, .med-use { margin: 8px 0 0; font-size: 13.5px; color: var(--text-2); }
+.med-written code, .med-grid code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; padding: 1px 6px; border-radius: 6px; background: rgba(148, 163, 184, 0.1); color: var(--text); }
+.med-alt { color: #fde68a; display: flex; gap: 6px; align-items: baseline; }
+.med-alt svg { flex: none; transform: translateY(2px); }
+.med-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 14px; margin: 10px 0 0; }
+.med-grid dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.med-grid dd { margin: 2px 0 0; font-size: 14px; color: var(--text); }
+.med-decoded { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.med-decoded .chip { margin-left: 0; font-weight: 500; }
+.med-use .tag { margin-right: 4px; }
+.rx-warning { display: flex; gap: 8px; align-items: baseline; margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; color: #fde68a; background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); }
+.rx-warning svg { flex: none; transform: translateY(2px); }
+.rx-warning b { color: #fef3c7; }
 .q-list { list-style: none; padding: 0 !important; }
 .q-list li { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
 .q-list svg { color: var(--teal); flex: none; margin-top: 4px; }

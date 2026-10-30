@@ -47,6 +47,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const QUICK_PROMPTS: { label: string; action: 'upload' | 'send'; mode?: Mode }[] = [
   { label: 'Help me understand this medical report.', action: 'upload' },
+  { label: "Read my doctor's handwritten prescription.", action: 'upload' },
   { label: 'What information should I prepare before visiting a doctor?', action: 'send' },
   { label: 'Explain a medical term in simple language.', action: 'send' },
   { label: 'Help me organize the symptoms I have been experiencing.', action: 'send', mode: 'symptom' },
@@ -435,8 +436,8 @@ export function AiLabApp() {
               <button className="feature" onClick={openFilePicker} disabled={!!busy}>
                 <div className="feature-icon"><FileScan size={22} /></div>
                 <b>Medical Report Intelligence</b>
-                <span>Upload a lab report (PDF or photo). Get values exactly as printed, plain-language explanations and questions for your doctor.</span>
-                <em>Upload a report →</em>
+                <span>Upload a lab report or a doctor's prescription, even a handwritten one (PDF or photo). Get values and medicines as written, plain-language explanations and questions for your doctor.</span>
+                <em>Upload a report or prescription →</em>
               </button>
               <button
                 className="feature"
@@ -576,7 +577,7 @@ export function AiLabApp() {
           </div>
           <div className="meta-right">
             {reportContext && (
-              <span className="context-chip" title="Follow-up questions use this report's analysis">
+              <span className="context-chip" title="Follow-up questions use this document's analysis">
                 <FileScan size={13} /> {reportContext.fileName}
                 <button onClick={() => setReportContext(null)} aria-label="Remove report from context"><X size={12} /></button>
               </span>
@@ -609,7 +610,7 @@ export function AiLabApp() {
             hidden
             onChange={(e) => void handleFile(e.target.files?.[0])}
           />
-          <button className="icon-btn" onClick={openFilePicker} disabled={!!busy} aria-label="Upload a medical report (PDF, JPG, PNG)" title="Upload report">
+          <button className="icon-btn" onClick={openFilePicker} disabled={!!busy} aria-label="Upload a medical report or prescription (PDF, JPG, PNG)" title="Upload report or prescription">
             <Paperclip size={18} />
           </button>
           <textarea
@@ -623,7 +624,7 @@ export function AiLabApp() {
                 ? 'Listening… speak now'
                 : mode === 'symptom'
                   ? 'Describe your symptoms — e.g. "headache for 3 days, worse in the mornings"'
-                  : 'Ask a health question, or upload a report…'
+                  : 'Ask a health question, or upload a report or prescription…'
             }
             aria-label="Message"
           />
@@ -656,7 +657,7 @@ export function AiLabApp() {
       {dragging && (
         <div className="dropzone" aria-hidden="true">
           <FileScan size={36} />
-          <b>Drop your report to analyse it</b>
+          <b>Drop your report or prescription to analyse it</b>
           <span>PDF, JPG, PNG or WebP · up to 10 MB</span>
         </div>
       )}

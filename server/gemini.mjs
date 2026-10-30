@@ -89,7 +89,7 @@ export function createGeminiService({ apiKey, model, thinkingLevel }) {
     },
 
     /** Generates JSON constrained by a schema and returns the parsed object. */
-    async generateJson({ systemInstruction, contents, schema, maxOutputTokens = 8192, fast = false, signal }) {
+    async generateJson({ systemInstruction, contents, schema, maxOutputTokens = 8192, fast = false, mediaResolution, signal }) {
       const ai = requireClient();
       let response;
       try {
@@ -103,6 +103,7 @@ export function createGeminiService({ apiKey, model, thinkingLevel }) {
             responseMimeType: 'application/json',
             responseJsonSchema: schema,
             ...(fast && thinkingConfig ? { thinkingConfig } : {}),
+            ...(mediaResolution ? { mediaResolution } : {}),
             abortSignal: signal,
           },
         });

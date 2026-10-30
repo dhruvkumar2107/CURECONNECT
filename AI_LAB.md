@@ -6,6 +6,7 @@ A private, invitation-only health-information copilot built on the **Google Gemi
 |---|---|
 | **Ask anything** | Streaming health Q&A with conversation context, stop / retry / copy / clear, and suggested follow-ups |
 | **Medical Report Intelligence** | PDF/JPG/PNG/WebP upload → values copied exactly as printed, a server-side check against the printed reference ranges, plain-language explanation, questions for the doctor, and limitations. Follow-up questions in chat use the analysis. |
+| **Prescription Reader** | Upload a photo of a printed or handwritten prescription. The AI reads each medicine and shows how it was written, any other possible readings, a confidence level, and the directions as written. The server decodes Rx shorthand (`1-0-1`, `BD`, `TDS`, `HS`, `SOS`, `AC/PC`, `5/7`) with fixed rules, not the AI. Unclear items are flagged "confirm with pharmacist". Images are sent at high resolution. |
 | **Symptom Copilot** | Guided intake that asks only useful follow-ups → structured doctor-visit summary (copy / download `.txt`). It keeps what the user said separate from what the AI generated. |
 | **Voice** | Browser speech recognition into an editable text box (English/Hindi) and browser text-to-speech with stop/replay. It can be turned off. |
 | **Safety** | Deterministic red-flag detection (English + Hindi) shows emergency guidance (**112** / 108, plus Tele-MANAS 14416 for self-harm) *before* the model answers. Server-side system instructions forbid diagnoses, doses and medication changes. |
@@ -43,7 +44,7 @@ Browser ──► cureconnect-dckr.onrender.com  (existing Render Static Site, u
 | `server/prompts.mjs` | System instructions and JSON schemas |
 | `server/safety.mjs` | Emergency red-flag detection |
 | `server/fileValidation.mjs` | Magic-byte content validation, size limits, encrypted/malformed PDF rejection |
-| `server/reportAnalysis.mjs` | Normalisation and deterministic range check of extracted values |
+| `server/reportAnalysis.mjs` | Normalisation, deterministic range check of extracted values, and the prescription-shorthand decoder |
 | `server/rateLimit.mjs` | In-memory limiter |
 | `server/tests/` | `node:test` suite (Gemini is faked **only** here) |
 | `ai-lab/` | Standalone React frontend (own Vite build → `dist-ai-lab/`) |
@@ -161,6 +162,7 @@ The status check (`models.get`) consumes no tokens.
 
 - No retrieval or citations. The optional "evidence-backed answers" feature is not implemented, and model-written links are shown as plain text rather than clickable links.
 - Report follow-ups use the structured analysis, not the original file. Details the analysis didn't capture can't be answered, and the assistant is instructed to say so.
+- Handwriting reading is best-effort. Similar-looking medicine names can be confused, so every medicine must be confirmed with a pharmacist or doctor. The UI says this on every prescription.
 - AI extraction can misread values. The server's numeric range check catches some disagreements ("Check manually"), but users must verify against the original report.
 - Rate limits are in-memory and reset on restart.
 - Emergency detection is keyword-based (English and Hindi). It is a safety net, not a triage system.

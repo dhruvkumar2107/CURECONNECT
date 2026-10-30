@@ -18,7 +18,7 @@ import {
   summaryInstruction,
 } from './prompts.mjs';
 import { createLimiter } from './rateLimit.mjs';
-import { STANDARD_LIMITATIONS, normaliseReport } from './reportAnalysis.mjs';
+import { normaliseReport, standardLimitationsFor } from './reportAnalysis.mjs';
 import { EMERGENCY_GUIDANCE, detectEmergency } from './safety.mjs';
 
 const MODES = ['general', 'symptom'];
@@ -355,15 +355,18 @@ export function createApp({ config, gemini, distDir, now = () => Date.now() }) {
             role: 'user',
             parts: [
               { inlineData: { mimeType: check.mimeType, data: req.body.toString('base64') } },
-              { text: 'Analyse this medical document according to the instructions and schema.' },
+              { text: 'Analyse this medical document (lab report or prescription, possibly handwritten) according to the instructions and schema.' },
             ],
           },
         ],
+        // Fine handwriting needs the full image resolution.
+        mediaResolution: 'MEDIA_RESOLUTION_HIGH',
+        maxOutputTokens: 12288,
         signal,
       });
       const analysis = normaliseReport(raw);
       if (!analysis) throw new AiError('invalid_provider_response', 'The AI service returned an unreadable analysis. Please try again.');
-      res.json({ ok: true, analysis, standardLimitations: STANDARD_LIMITATIONS, model: gemini.model });
+      res.json({ ok: true, analysis, standardLimitations: standardLimitationsFor(analysis), model: gemini.model });
     } catch (err) {
       const e = toAiError(err, signal);
       console.warn(`[ai-lab] report analysis failed: ${e.code}`);

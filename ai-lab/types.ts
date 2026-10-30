@@ -38,8 +38,36 @@ export interface Finding {
   checksDisagree: boolean;
 }
 
+export type DocumentType = 'lab_report' | 'prescription' | 'other_medical' | 'not_medical';
+
+export interface Medicine {
+  writtenAs: string;
+  medicineName: string;
+  alternatives: string[];
+  strength: string;
+  form: string;
+  directionsAsWritten: string;
+  frequency: string;
+  timing: string;
+  duration: string;
+  confidence: 'high' | 'medium' | 'low';
+  commonUse: string;
+  /** Standard Rx shorthand decoded by the server, not the model. */
+  decoded: { code: string; meaning: string }[];
+}
+
+export interface PrescriptionDetails {
+  prescriber: string;
+  complaintsOrDiagnosis: string;
+  advice: string[];
+  followUp: string;
+}
+
 export interface ReportAnalysis {
   isMedicalDocument: boolean;
+  documentType: DocumentType;
+  medicines: Medicine[];
+  prescription: PrescriptionDetails;
   readability: 'clear' | 'partial' | 'poor';
   overview: { reportType: string; reportDate: string; context: string; summary: string };
   findings: Finding[];
